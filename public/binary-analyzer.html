@@ -88,7 +88,7 @@
 
 <h1>Binary YES/NO Analyzer</h1>
 <p class="subtitle">Tests whether integers lean YES or NO based on their binary representation</p>
-<button class="btn" onclick="run()">&#x21BB;&nbsp; Generate New Sample</button>
+<button class="btn" id="generateBtn">&#x21BB;&nbsp; Generate New Sample</button>
 
 <div id="output" style="margin-top:24px"></div>
 
@@ -272,6 +272,7 @@ function run() {
   document.getElementById('output').innerHTML = html;
 }
 
+document.getElementById('generateBtn').addEventListener('click', run);
 run();
 </script>
 </body>
