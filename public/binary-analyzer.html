@@ -140,6 +140,19 @@ select:focus{border-color:var(--acc);}
 .mini-bar{height:5px;border-radius:3px;display:inline-block;vertical-align:middle;}
 .insight{background:var(--surf);border:1px solid var(--hi);border-radius:9px;padding:13px 15px;margin-top:4px;font-size:.76rem;line-height:1.75;color:var(--txt);}
 .insight strong{color:var(--br);} .hl-y{color:var(--yes);font-weight:700;} .hl-n{color:var(--no);font-weight:700;} .hl-t{color:var(--tie);font-weight:700;}
+
+/* ── hash process display ── */
+.char-ones { color: var(--txt); }
+.hash-process { background:#020710; border-radius:8px; padding:12px 14px; font-family:'Courier New',monospace; font-size:.75rem; }
+.hash-init { color:var(--acc); margin-bottom:8px; padding-bottom:8px; border-bottom:1px solid var(--bdr); }
+.hash-step { display:flex; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:6px; }
+.hs-ch   { color:var(--br); font-weight:800; min-width:20px; }
+.hs-code { color:var(--mu); font-size:.68rem; min-width:62px; }
+.hs-op   { color:var(--txt); font-size:.7rem; flex:1; min-width:200px; }
+.hs-arr  { color:var(--acc); }
+.hs-val  { color:var(--yes); font-weight:700; }
+.hash-more { color:var(--mu); font-style:italic; margin:4px 0; font-size:.7rem; }
+.hash-result-line { display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:8px; border-top:1px solid var(--bdr); font-size:.85rem; }
 </style>
 </head>
 <body>
@@ -260,29 +273,27 @@ function analyzeNumFast(num){
 }
 
 // ════════════ TEXT ANALYSIS ════════════
+// ASCII chars are skewed toward fewer 1-bits, so raw counting gives NO bias
+// for longer text. FNV-1a hashes the phrase into one 32-bit number that
+// distributes uniformly — verdict is length-independent and ~50/50.
 function analyzeText(text){
   if(!text.trim()) return null;
   const chars=[...text].map(ch=>{
     const code=ch.charCodeAt(0);
-    const bin=code.toString(2).padStart(8,'0'); // fixed 8-bit, no stripping needed
-    const o=ones(bin), z=8-o;
-    const verdict=o>z?'YES':o<z?'NO':'TIE';
-    return { ch, code, bin, ones:o, zeros:z, verdict };
+    const bin=code.toString(2).padStart(8,'0');
+    return { ch, code, bin, ones:ones(bin), zeros:8-ones(bin) };
   });
-  const combined=chars.map(c=>c.bin).join('');
-  const t1=ones(combined), t0=combined.length-t1;
-  let verdict, tieBreakerNote='';
-  if(t1>t0)       { verdict='YES'; }
-  else if(t0>t1)  { verdict='NO'; }
-  else {
-    // Tiebreaker: sum of char codes → BigInt → strip-and-analyze
-    const codeSum=BigInt(chars.reduce((a,c)=>a+c.code,0));
-    const sumBin=stripLead(codeSum.toString(2));
-    const so=ones(sumBin), sz=sumBin.length-so;
-    verdict=so>sz?'YES':sz>so?'NO':(codeSum%2n===1n?'YES':'NO');
-    tieBreakerNote=`Tied — tiebreaker used char-code sum (${Number(codeSum)}).`;
+  // FNV-1a 32-bit
+  const FNV_PRIME=16777619n, FNV_OFF=2166136261n, MASK=0xFFFFFFFFn;
+  let h=FNV_OFF;
+  const steps=[];
+  for(const c of chars){
+    const prev=h;
+    h=((h^BigInt(c.code))*FNV_PRIME)&MASK;
+    steps.push({ch:c.ch, code:c.code, prev:Number(prev), after:Number(h)});
   }
-  return { kind:'text', text, chars, combined, totalOnes:t1, totalZeros:t0, verdict, tieBreakerNote };
+  const hashNum=Number(h);
+  return { kind:'text', text, chars, hash:hashNum, hashSteps:steps, numResult:analyzeNum(String(hashNum)) };
 }
 
 // ════════════ DETECT INPUT TYPE ════════════
@@ -310,12 +321,12 @@ function renderBits(fullBin, bin, stripped, state, baseDelay){
   return h;
 }
 
-// ════════════ RENDER: NUMBER MODE ════════════
-function renderNumber(result){
+// ════════════ RENDER: NUMBER MODE (shared builder) ════════════
+function buildCascadeHTML(result, startDelay=0){
   const {steps,verdict,totalOnes:t1,totalZeros:t0}=result;
   let html='',bd=0;
   steps.forEach((s,i)=>{
-    const cd=(i*.38).toFixed(2);
+    const cd=(startDelay+i*.38).toFixed(2);
     html+=`<div class="step-wrap" style="animation-delay:${cd}s">
       <div class="step-card state-${s.state}">
         <div class="step-top">
@@ -328,10 +339,10 @@ function renderNumber(result){
         <div class="tug-lbl">Running total</div>${renderTug(s.runOnes,s.runZeros)}
       </div></div>`;
     if(s.state==='tie'&&i<steps.length-1)
-      html+=`<div class="step-wrap" style="animation-delay:${(i*.38+.28).toFixed(2)}s"><div class="connector">TIE — DEEPENING THE SEARCH</div></div>`;
+      html+=`<div class="step-wrap" style="animation-delay:${(startDelay+i*.38+.28).toFixed(2)}s"><div class="connector">TIE — DEEPENING THE SEARCH</div></div>`;
     bd+=.12+s.bin.length*.018+.1;
   });
-  const vd=(steps.length*.38+.28).toFixed(2);
+  const vd=(startDelay+steps.length*.38+.28).toFixed(2);
   const s0=steps[0];
   const detail=steps.length===1
     ?(s0.roundOnes>s0.roundZeros
@@ -344,51 +355,77 @@ function renderNumber(result){
     <div class="verd-big ${verdict==='YES'?'yes':'no'}">${verdict}</div>
     <div class="verd-detail">${detail}</div>
   </div>`;
-  document.getElementById('cascade').innerHTML=html;
+  return html;
+}
+
+function renderNumber(result){
+  document.getElementById('cascade').innerHTML = buildCascadeHTML(result);
 }
 
 // ════════════ RENDER: TEXT MODE ════════════
+function esc(s){ return s==='<'?'&lt;':s==='>'?'&gt;':s==='&'?'&amp;':s===' '?'·':s; }
+
 function renderText(result){
-  const {text,chars,combined,totalOnes:t1,totalZeros:t0,verdict,tieBreakerNote}=result;
-  // character grid
-  let charHtml=chars.map(c=>`<div class="char-card">
-    <div class="char-glyph">${c.ch==='<'?'&lt;':c.ch==='>'?'&gt;':c.ch==='&'?'&amp;':c.ch===' '?'·':c.ch}</div>
+  const {text,chars,hash,hashSteps,numResult}=result;
+  const SHOW=4; // max individual hash steps to display before condensing
+
+  // ── 1. Character map card ──
+  const charCards=chars.map(c=>`<div class="char-card">
+    <div class="char-glyph">${esc(c.ch)}</div>
     <div class="char-code">ASCII ${c.code}</div>
     <div class="char-bin">${c.bin.match(/.{1,4}/g).join(' ')}</div>
-    <div class="char-verdict ${c.verdict==='YES'?'cv-yes':c.verdict==='NO'?'cv-no':'cv-tie'}">${c.verdict}</div>
+    <div class="char-ones" style="font-size:.6rem;color:var(--txt);margin-top:3px">${c.ones} ones · ${c.zeros} zeros</div>
   </div>`).join('');
 
-  const yesChars=chars.filter(c=>c.verdict==='YES').length;
-  const noChars=chars.filter(c=>c.verdict==='NO').length;
-  const tieChars=chars.filter(c=>c.verdict==='TIE').length;
-
-  const pct=(t1/(t1+t0)*100).toFixed(1);
-  const detail=tieBreakerNote
-    ?`All ${chars.length} characters tied overall. ${tieBreakerNote} Verdict: <strong>${verdict}</strong>.`
-    :`<strong>${text}</strong> produces ${t1+t0} bits total across ${chars.length} characters. <strong>${t1} ones</strong> vs <strong>${t0} zeros</strong> → <strong>${verdict}</strong>.`;
+  // ── 2. FNV-1a hash derivation card ──
+  const visible=hashSteps.length<=SHOW+1 ? hashSteps : [...hashSteps.slice(0,SHOW), null, hashSteps[hashSteps.length-1]];
+  const hashLines=visible.map((s,i)=>{
+    if(!s) return `<div class="hash-more">… ${hashSteps.length-SHOW-1} more characters …</div>`;
+    return `<div class="hash-step">
+      <span class="hs-ch">'${esc(s.ch)}'</span>
+      <span class="hs-code">ASCII ${s.code}</span>
+      <span class="hs-op">h = (h ⊕ ${s.code}) × 16,777,619</span>
+      <span class="hs-arr">→</span>
+      <span class="hs-val">${s.after.toLocaleString()}</span>
+    </div>`;
+  }).join('');
 
   let html=`
-  <div class="step-wrap" style="animation-delay:.05s">
-    <div class="step-card state-${verdict==='YES'?'yes':'no'}">
+  <div class="step-wrap" style="animation-delay:.04s">
+    <div class="step-card state-tie">
       <div class="step-top">
-        <div><div class="step-num">TEXT INPUT</div><div class="step-title">Each character → 8-bit ASCII binary</div></div>
-        <div class="sbadge sb-${verdict==='YES'?'yes':'no'}">${verdict==='YES'?'▲ ONES LEAD':'▼ ZEROS LEAD'}</div>
+        <div><div class="step-num">CHARACTER MAP</div><div class="step-title">${chars.length} character${chars.length>1?'s':''} — 8-bit ASCII binary</div></div>
       </div>
-      <div class="char-grid">${charHtml}</div>
-      <div class="rstat" style="margin-bottom:6px">
-        Characters:&nbsp;<span class="rs1">${yesChars} YES</span>&nbsp;/&nbsp;<span class="rs0">${noChars} NO</span>&nbsp;/&nbsp;<span style="color:var(--tie);font-weight:700">${tieChars} TIE</span>
-        &nbsp;·&nbsp;${t1+t0} total bits
+      <div class="char-grid">${charCards}</div>
+      <div style="font-size:.68rem;color:var(--mu);margin-top:10px;line-height:1.5">
+        Raw bit count is skewed — printable ASCII has more 0-bits than 1-bits,
+        so long text always drifts NO. A hash fixes this.
       </div>
-      <div class="tug-lbl">Combined balance (all characters)</div>
-      ${renderTug(t1,t0)}
     </div>
   </div>
-  <div class="verdict-wrap" style="animation-delay:.4s">
-    <div class="verd-lbl">Final verdict</div>
-    <div class="verd-tally"><b>${t1}</b> ones &nbsp;vs&nbsp; <b>${t0}</b> zeros</div>
-    <div class="verd-big ${verdict==='YES'?'yes':'no'}">${verdict}</div>
-    <div class="verd-detail">${detail}</div>
-  </div>`;
+  <div class="step-wrap" style="animation-delay:.32s">
+    <div class="connector">HASHING PHRASE INTO ONE NUMBER</div>
+  </div>
+  <div class="step-wrap" style="animation-delay:.44s">
+    <div class="step-card state-tie">
+      <div class="step-top">
+        <div><div class="step-num">FNV-1a HASH</div><div class="step-title">Phrase fingerprint — uniform 32-bit result, length-independent</div></div>
+      </div>
+      <div class="hash-process">
+        <div class="hash-init">h₀ = 2,166,136,261 &nbsp;<span style="color:var(--mu);font-size:.72em">(FNV offset basis)</span></div>
+        ${hashLines}
+        <div class="hash-result-line">
+          <span style="color:var(--mu)">Fingerprint:</span>
+          <span style="color:var(--br);font-weight:800;font-size:1.05rem">${hash.toLocaleString()}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="step-wrap" style="animation-delay:.76s">
+    <div class="connector">ANALYZING FINGERPRINT AS A NUMBER</div>
+  </div>
+  ${buildCascadeHTML(numResult, 0.88)}`;
+
   document.getElementById('cascade').innerHTML=html;
 }
 
