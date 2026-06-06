@@ -181,14 +181,52 @@ select:focus{border-color:var(--acc);}
 <div class="panel" id="panel-batch">
   <div class="batch-controls">
     <div class="ctrl-group">
-      <div class="ctrl-label">Range</div>
-      <select id="bRange">
-        <option value="100">1 – 100</option>
-        <option value="1000">1 – 1,000</option>
-        <option value="100000" selected>1 – 100,000</option>
-        <option value="10000000">1 – 10,000,000</option>
-        <option value="1000000000">1 – 1,000,000,000</option>
+      <div class="ctrl-label">Test type</div>
+      <select id="bType" onchange="onBatchTypeChange()">
+        <option value="numbers">Numbers</option>
+        <option value="phrases">Phrases / words</option>
       </select>
+    </div>
+    <!-- number-specific options -->
+    <div id="numOpts" style="display:contents">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Range</div>
+        <select id="bRange">
+          <option value="100">1 – 100</option>
+          <option value="1000">1 – 1,000</option>
+          <option value="100000" selected>1 – 100,000</option>
+          <option value="10000000">1 – 10,000,000</option>
+          <option value="1000000000">1 – 1,000,000,000</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Mode</div>
+        <select id="bMode">
+          <option value="random" selected>Random</option>
+          <option value="seq">Sequential</option>
+        </select>
+      </div>
+    </div>
+    <!-- phrase-specific options -->
+    <div id="phraseOpts" style="display:none;contents">
+      <div class="ctrl-group">
+        <div class="ctrl-label">Characters</div>
+        <select id="bCharset">
+          <option value="lower">a – z</option>
+          <option value="alpha" selected>a – z  A – Z</option>
+          <option value="alnum">Letters + digits</option>
+          <option value="words">Common English words</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <div class="ctrl-label">Length</div>
+        <select id="bPhraseLen">
+          <option value="2,6">Short (2–6 chars)</option>
+          <option value="3,12" selected>Medium (3–12)</option>
+          <option value="5,24">Long (5–24)</option>
+          <option value="2,30">All lengths</option>
+        </select>
+      </div>
     </div>
     <div class="ctrl-group">
       <div class="ctrl-label">Sample size</div>
@@ -197,13 +235,6 @@ select:focus{border-color:var(--acc);}
         <option value="500" selected>500</option>
         <option value="1000">1,000</option>
         <option value="2000">2,000</option>
-      </select>
-    </div>
-    <div class="ctrl-group">
-      <div class="ctrl-label">Mode</div>
-      <select id="bMode">
-        <option value="random" selected>Random sample</option>
-        <option value="seq">Sequential (1,2,3…)</option>
       </select>
     </div>
     <button class="btn run-btn" id="runBatchBtn">RUN</button>
@@ -292,6 +323,10 @@ function analyzeText(text){
     h=((h^BigInt(c.code))*FNV_PRIME)&MASK;
     steps.push({ch:c.ch, code:c.code, prev:Number(prev), after:Number(h)});
   }
+  // Murmur3 finalizer for uniform bit distribution across English words.
+  // Then force bit 31 = 1 → always 32-bit → strip → 31 bits (odd) → no ties → 50/50.
+  h=h^(h>>16n); h=(h*0x85ebca6bn)&MASK; h=h^(h>>13n); h=(h*0xc2b2ae35n)&MASK; h=h^(h>>16n);
+  h = h | 0x80000000n;
   const hashNum=Number(h);
   return { kind:'text', text, chars, hash:hashNum, hashSteps:steps, numResult:analyzeNum(String(hashNum)) };
 }
@@ -409,7 +444,7 @@ function renderText(result){
   <div class="step-wrap" style="animation-delay:.44s">
     <div class="step-card state-tie">
       <div class="step-top">
-        <div><div class="step-num">FNV-1a HASH</div><div class="step-title">Phrase fingerprint — uniform 32-bit result, length-independent</div></div>
+        <div><div class="step-num">FNV-1a + MURMUR3 HASH</div><div class="step-title">Phrase fingerprint — uniform 32-bit result, length-independent</div></div>
       </div>
       <div class="hash-process">
         <div class="hash-init">h₀ = 2,166,136,261 &nbsp;<span style="color:var(--mu);font-size:.72em">(FNV offset basis)</span></div>
@@ -417,6 +452,7 @@ function renderText(result){
         <div class="hash-result-line">
           <span style="color:var(--mu)">Fingerprint:</span>
           <span style="color:var(--br);font-weight:800;font-size:1.05rem">${hash.toLocaleString()}</span>
+          <span style="color:var(--mu);font-size:.68rem">Murmur3-mixed → bit 31 forced → 31 analyzed bits → 50/50 guaranteed</span>
         </div>
       </div>
     </div>
@@ -429,8 +465,132 @@ function renderText(result){
   document.getElementById('cascade').innerHTML=html;
 }
 
+// ════════════ BATCH TYPE TOGGLE ════════════
+function onBatchTypeChange(){
+  const isPhrase=document.getElementById('bType').value==='phrases';
+  document.getElementById('numOpts').style.display    = isPhrase?'none':'contents';
+  document.getElementById('phraseOpts').style.display = isPhrase?'contents':'none';
+}
+
+// ════════════ PHRASE BATCH ════════════
+const WORDS='the be to of and a in that have it for not on with he as you do at this but his by from they we say her she or an will my one all would there their what so up out if about who get which go me when make can like time no just him know take people into year your good some could them see other than then now look only come its over think also back after use two how our work first well way even new want because any these give day most us'.split(' ');
+
+function randomPhrase(charset,minL,maxL){
+  if(charset==='words'){
+    const wc=1+Math.floor(Math.random()*3);
+    return Array.from({length:wc},()=>WORDS[Math.floor(Math.random()*WORDS.length)]).join(' ');
+  }
+  const sets={lower:'abcdefghijklmnopqrstuvwxyz',alpha:'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',alnum:'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'};
+  const s=sets[charset]||sets.alpha;
+  const len=minL+Math.floor(Math.random()*(maxL-minL+1));
+  return Array.from({length:len},()=>s[Math.floor(Math.random()*s.length)]).join('');
+}
+
+function analyzeTextFast(text){
+  const FNV_PRIME=16777619n,FNV_OFF=2166136261n,MASK=0xFFFFFFFFn;
+  let h=FNV_OFF;
+  for(const ch of text) h=((h^BigInt(ch.charCodeAt(0)))*FNV_PRIME)&MASK;
+  h=h^(h>>16n);h=(h*0x85ebca6bn)&MASK;h=h^(h>>13n);h=(h*0xc2b2ae35n)&MASK;h=h^(h>>16n);
+  h=h|0x80000000n;
+  const n=BigInt(Number(h)); let t1=0,t0=0;
+  for(let i=0;i<TX.length;i++){
+    const bin=stripLead(TX[i].fn(n).toString(2));
+    const o=ones(bin),z=bin.length-o; t1+=o;t0+=z;
+    if(t1!==t0) return {verdict:t1>t0?'YES':'NO',steps:i+1,len:text.length};
+  }
+  return {verdict:'NO',steps:TX.length,len:text.length};
+}
+
+function runPhraseBatch(){
+  const charset=document.getElementById('bCharset').value;
+  const [minL,maxL]=document.getElementById('bPhraseLen').value.split(',').map(Number);
+  const count=parseInt(document.getElementById('bCount').value);
+  const samples=Array.from({length:count},()=>randomPhrase(charset,minL,maxL));
+  const results=samples.map(p=>({phrase:p,...analyzeTextFast(p)}));
+  const yesR=results.filter(r=>r.verdict==='YES');
+  const noR=results.filter(r=>r.verdict==='NO');
+  const yp=(yesR.length/count*100).toFixed(1);
+  const np=(100-parseFloat(yp)).toFixed(1);
+  const bias=Math.abs(parseFloat(yp)-50).toFixed(1);
+  // length distribution
+  const lenMap={};
+  results.forEach(r=>{
+    const bucket=Math.floor(r.len/3)*3;
+    if(!lenMap[bucket])lenMap[bucket]={yes:0,no:0};
+    lenMap[bucket][r.verdict==='YES'?'yes':'no']++;
+  });
+  const lenKeys=Object.keys(lenMap).map(Number).sort((a,b)=>a-b);
+  // sample table (20 examples)
+  const sampleRows=results.slice(0,20).map(r=>`<tr>
+    <td style="font-family:'Courier New',monospace;color:var(--br)">${r.phrase.length>30?r.phrase.slice(0,28)+'…':r.phrase}</td>
+    <td style="color:var(--mu);font-size:.7rem">${r.len}</td>
+    <td><span class="badge ${r.verdict==='YES'?'b-yes':'b-no'}" style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:.7rem;font-weight:800;background:${r.verdict==='YES'?'var(--yes-bg)':'var(--no-bg)'};color:${r.verdict==='YES'?'var(--yes)':'var(--no)'}">${r.verdict}</span></td>
+  </tr>`).join('');
+
+  document.getElementById('batch-results').innerHTML=`
+  <div class="stat-cards">
+    <div class="sc"><div class="sc-val" style="color:var(--yes)">${yesR.length}</div><div class="sc-lbl">YES</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--no)">${noR.length}</div><div class="sc-lbl">NO</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--acc)">${count}</div><div class="sc-lbl">Phrases</div></div>
+    <div class="sc"><div class="sc-val" style="color:${parseFloat(bias)<3?'var(--yes)':'var(--tie)'}">${bias}%</div><div class="sc-lbl">Bias</div></div>
+  </div>
+  <div class="section">
+    <div class="sec-title">YES vs NO</div>
+    <div class="hbar-row">
+      <div class="hbar-lbl" style="color:var(--yes)">YES</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${yp}%;background:var(--yes);color:#000">${yesR.length}</div></div>
+      <div class="hbar-pct">${yp}%</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl" style="color:var(--no)">NO</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${np}%;background:var(--no);color:#000">${noR.length}</div></div>
+      <div class="hbar-pct">${np}%</div>
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-title">Result map — hover a cell to see the phrase</div>
+    <div class="grid-wrap">
+      ${results.map(r=>`<div class="gcell ${r.verdict==='YES'?'gyes':'gno'}" title="${r.phrase} → ${r.verdict}"></div>`).join('')}
+    </div>
+  </div>
+  <div class="section">
+    <div class="sec-title">YES% by phrase length</div>
+    <table class="bl-table">
+      <thead><tr><th>Chars</th><th>Count</th><th>YES</th><th>NO</th><th>YES%</th><th>Bar</th></tr></thead>
+      <tbody>${lenKeys.map(k=>{
+        const {yes,no}=lenMap[k],tot=yes+no,p=Math.round(yes/tot*100);
+        const clr=p>=55?'var(--yes)':p<=45?'var(--no)':'var(--tie)';
+        return `<tr>
+          <td style="color:var(--acc);font-weight:700">${k}–${k+2}</td>
+          <td>${tot}</td><td style="color:var(--yes)">${yes}</td><td style="color:var(--no)">${no}</td>
+          <td style="color:${clr};font-weight:700">${p}%</td>
+          <td><span class="mini-bar" style="width:${p*.6}px;background:var(--yes)"></span><span class="mini-bar" style="width:${(100-p)*.6}px;background:var(--no)"></span></td>
+        </tr>`;}).join('')}
+      </tbody>
+    </table>
+  </div>
+  <div class="section">
+    <div class="sec-title">Sample phrases (first 20)</div>
+    <table class="bl-table">
+      <thead><tr><th>Phrase</th><th>Len</th><th>Verdict</th></tr></thead>
+      <tbody>${sampleRows}</tbody>
+    </table>
+  </div>
+  <div class="section">
+    <div class="sec-title">Why phrases stay balanced at any length</div>
+    <div class="insight">
+      Each phrase is run through <strong>FNV-1a</strong> (used in compilers &amp; hash tables) then
+      <strong>Murmur3-finalized</strong> for maximum bit avalanche. The result is a uniform 32-bit fingerprint.
+      Bit 31 is forced to 1, guaranteeing a <strong>32-bit number</strong>. After stripping the leading 1
+      we always get exactly <strong>31 bits</strong> — an odd count where ties are mathematically impossible,
+      so YES and NO are perfectly symmetric. Length doesn't matter at all.
+    </div>
+  </div>`;
+}
+
 // ════════════ BATCH MODE ════════════
 function runBatch(){
+  if(document.getElementById('bType').value==='phrases'){ runPhraseBatch(); return; }
   const hi=parseInt(document.getElementById('bRange').value);
   const count=parseInt(document.getElementById('bCount').value);
   const mode=document.getElementById('bMode').value;
