@@ -3,329 +3,638 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Binary YES / NO</title>
+<title>Binary YES / NO — Cascade Decoder</title>
 <style>
-  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  body {
-    font-family: 'Segoe UI', system-ui, sans-serif;
-    background: #0f172a;
-    color: #e2e8f0;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 48px 20px 80px;
-  }
+:root {
+  --bg:      #040912;
+  --surface: #070f1d;
+  --card:    #0b1829;
+  --border:  #12243a;
+  --hi:      #1a3550;
+  --accent:  #0ea5e9;
+  --yes:     #22d3a0;
+  --yes-bg:  #041f16;
+  --no:      #f43f5e;
+  --no-bg:   #1f040b;
+  --tie:     #f59e0b;
+  --tie-bg:  #1f1004;
+  --text:    #7a9db8;
+  --bright:  #ddeeff;
+  --muted:   #1d3852;
+}
 
-  h1 { font-size: 2rem; font-weight: 800; color: #38bdf8; letter-spacing: -0.02em; margin-bottom: 6px; }
-  .tagline { color: #64748b; font-size: 0.9rem; margin-bottom: 48px; text-align: center; }
+body {
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 16px 100px;
+}
 
-  /* ── Input ── */
-  .input-row {
-    display: flex;
-    gap: 10px;
-    width: 100%;
-    max-width: 480px;
-    margin-bottom: 40px;
-  }
-  input[type="text"] {
-    flex: 1;
-    background: #1e293b;
-    border: 2px solid #334155;
-    border-radius: 10px;
-    color: #f1f5f9;
-    font-size: 1.25rem;
-    font-weight: 700;
-    padding: 14px 18px;
-    outline: none;
-    transition: border-color 0.15s;
-    min-width: 0;
-  }
-  input[type="text"]:focus { border-color: #38bdf8; }
-  input[type="text"]::placeholder { color: #334155; font-weight: 400; }
-  button {
-    background: #38bdf8;
-    color: #0f172a;
-    border: none;
-    border-radius: 10px;
-    font-size: 1rem;
-    font-weight: 800;
-    padding: 14px 22px;
-    cursor: pointer;
-    transition: background 0.15s, transform 0.1s;
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-  button:hover  { background: #7dd3fc; }
-  button:active { transform: scale(0.97); }
+/* ──────── noscript / warning ──────── */
+noscript {
+  display: block;
+  background: #450a0a;
+  color: #fca5a5;
+  border: 1px solid #f43f5e;
+  border-radius: 10px;
+  padding: 14px 22px;
+  margin-bottom: 28px;
+  text-align: center;
+  font-size: 0.9rem;
+  font-weight: 600;
+  max-width: 500px;
+  width: 100%;
+}
 
-  /* ── Result card ── */
-  #result {
-    width: 100%;
-    max-width: 600px;
-    display: none;
-    animation: fadeUp 0.3s ease;
-  }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(16px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+/* ──────── header ──────── */
+.logo {
+  font-size: 3rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  color: var(--bright);
+  text-align: center;
+  margin-bottom: 8px;
+}
+.logo .y { color: var(--yes); }
+.logo .n { color: var(--no);  }
+.tagline {
+  color: var(--text);
+  font-size: 0.82rem;
+  text-align: center;
+  max-width: 400px;
+  line-height: 1.6;
+  margin-bottom: 36px;
+}
 
-  .card {
-    background: #1e293b;
-    border: 1px solid #334155;
-    border-radius: 16px;
-    padding: 28px;
-    margin-bottom: 16px;
-  }
+/* ──────── input ──────── */
+.input-row {
+  display: flex;
+  gap: 10px;
+  max-width: 460px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+input {
+  flex: 1; min-width: 0;
+  background: var(--card);
+  border: 2px solid var(--hi);
+  border-radius: 10px;
+  color: var(--bright);
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-family: 'Courier New', monospace;
+  padding: 13px 18px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px #0ea5e918;
+}
+input::placeholder { color: var(--muted); font-weight: 400; font-size: 1rem; }
+.decode-btn {
+  background: var(--accent);
+  color: #000;
+  border: none;
+  border-radius: 10px;
+  padding: 13px 22px;
+  font-size: 0.88rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.decode-btn:hover  { background: #38bdf8; }
+.decode-btn:active { transform: scale(0.96); }
 
-  /* number + binary */
-  .num-display {
-    font-size: 2.2rem;
-    font-weight: 800;
-    color: #f1f5f9;
-    margin-bottom: 4px;
-    word-break: break-all;
-  }
-  .num-label { font-size: 0.75rem; color: #475569; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 20px; }
+.jstip {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 44px;
+}
+.jstip b { color: var(--accent); }
 
-  .bits-wrap {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 24px;
-  }
-  .bit {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 34px;
-    height: 34px;
-    border-radius: 7px;
-    font-size: 1rem;
-    font-weight: 800;
-    font-family: 'Courier New', monospace;
-  }
-  .bit-1 { background: #14532d; color: #4ade80; box-shadow: 0 0 8px #4ade8033; }
-  .bit-0 { background: #1c1917; color: #64748b; }
-  .bit-sep { width: 6px; } /* spacer between groups of 4 */
+/* ──────── cascade container ──────── */
+#cascade { width: 100%; max-width: 560px; }
 
-  /* balance bar */
-  .balance-row { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-  .balance-track {
-    flex: 1;
-    height: 10px;
-    background: #0f172a;
-    border-radius: 99px;
-    overflow: hidden;
-  }
-  .balance-fill-yes { height: 100%; border-radius: 99px; background: #4ade80; transition: width 0.4s ease; }
-  .balance-fill-no  { height: 100%; border-radius: 99px; background: #f87171; transition: width 0.4s ease; }
-  .balance-lbl { font-size: 0.8rem; font-weight: 700; width: 70px; flex-shrink: 0; }
-  .balance-cnt { font-size: 0.8rem; color: #64748b; }
+/* ──────── step wrapper (animation) ──────── */
+.step-wrap {
+  opacity: 0;
+  transform: translateY(14px);
+  animation: rise 0.4s ease forwards;
+  margin-bottom: 6px;
+}
+@keyframes rise {
+  to { opacity: 1; transform: none; }
+}
 
-  /* verdict */
-  .verdict-wrap {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 28px 0 20px;
-  }
-  .verdict {
-    font-size: 5rem;
-    font-weight: 900;
-    letter-spacing: -0.04em;
-    line-height: 1;
-  }
-  .verdict-yes { color: #4ade80; text-shadow: 0 0 40px #4ade8055; }
-  .verdict-no  { color: #f87171; text-shadow: 0 0 40px #f8717155; }
+/* ──────── step card ──────── */
+.step-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  position: relative;
+  overflow: hidden;
+}
+.step-card::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 14px 14px 0 0;
+}
+.step-card.state-tie  { border-color: var(--tie-bg); }
+.step-card.state-tie::after  { background: var(--tie); }
+.step-card.state-yes  { border-color: #0a3020; box-shadow: 0 0 20px #22d3a018; }
+.step-card.state-yes::after  { background: var(--yes); }
+.step-card.state-no   { border-color: #280610; box-shadow: 0 0 20px #f43f5e18; }
+.step-card.state-no::after   { background: var(--no); }
 
-  /* reasoning */
-  .reason {
-    background: #0f172a;
-    border-radius: 10px;
-    padding: 14px 16px;
-    font-size: 0.85rem;
-    color: #94a3b8;
-    line-height: 1.65;
-    text-align: center;
-  }
-  .reason strong { color: #e2e8f0; }
+/* step top row */
+.step-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.step-num {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+}
+.step-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--bright);
+  margin-top: 2px;
+}
+.state-badge {
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 4px 10px;
+  border-radius: 99px;
+}
+.badge-tie { background: var(--tie-bg);  color: var(--tie); }
+.badge-yes { background: var(--yes-bg);  color: var(--yes); }
+.badge-no  { background: var(--no-bg);   color: var(--no);  }
 
-  /* stats row */
-  .stats { display: flex; gap: 10px; flex-wrap: wrap; }
-  .stat {
-    flex: 1;
-    min-width: 90px;
-    background: #0f172a;
-    border-radius: 10px;
-    padding: 12px;
-    text-align: center;
-  }
-  .stat-val { font-size: 1.5rem; font-weight: 800; }
-  .stat-lbl { font-size: 0.68rem; color: #475569; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 3px; }
-  .s-ones  { color: #4ade80; }
-  .s-zeros { color: #f87171; }
-  .s-bits  { color: #94a3b8; }
-  .s-ver-yes { color: #4ade80; }
-  .s-ver-no  { color: #f87171; }
+/* equation display */
+.eq-box {
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  font-family: 'Courier New', monospace;
+}
+.eq-line {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--bright);
+  line-height: 1.5;
+}
+.eq-op   { color: var(--accent); }
+.eq-res  { color: var(--text); font-size: 0.85rem; }
 
-  .error-msg {
-    color: #f87171;
-    font-size: 0.85rem;
-    margin-top: -28px;
-    margin-bottom: 16px;
-    text-align: center;
-  }
+/* bits display */
+.bits-box {
+  background: #020710;
+  border-radius: 8px;
+  padding: 10px 10px 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+}
+.bits-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+.bit {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  font-size: 0.82rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  opacity: 0;
+  animation: bitPop 0.12s ease forwards;
+}
+@keyframes bitPop { to { opacity: 1; } }
+.b1y { background: var(--yes-bg); color: var(--yes); }
+.b1n { background: var(--no-bg);  color: var(--no);  }
+.b1t { background: #0d2535;       color: var(--accent); }
+.b0  { background: #060d1c;       color: #1a3050; }
+.bsep { width: 4px; }
+
+.bits-more { font-size: 0.65rem; color: var(--muted); margin-top: 5px; }
+
+/* round stats */
+.round-stats {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--text);
+  margin-bottom: 12px;
+}
+.rs1 { color: var(--yes); font-weight: 700; }
+.rs0 { color: var(--no);  font-weight: 700; }
+
+/* tug-of-war bar */
+.tug-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.tug-track {
+  display: flex;
+  height: 18px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--surface);
+  margin-bottom: 4px;
+}
+.tug-yes {
+  background: var(--yes);
+  display: flex; align-items: center; justify-content: flex-end; padding-right: 6px;
+  font-size: 0.64rem; font-weight: 800; color: #000;
+  transition: width 0.5s ease;
+}
+.tug-no {
+  background: var(--no);
+  display: flex; align-items: center; padding-left: 6px;
+  font-size: 0.64rem; font-weight: 800; color: #000;
+  transition: width 0.5s ease;
+}
+.tug-tie-bar {
+  background: var(--tie);
+  width: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.64rem; font-weight: 800; color: #000;
+}
+.tug-counts {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+}
+.tc-yes { color: var(--yes); }
+.tc-no  { color: var(--no);  }
+
+/* connector between tied steps */
+.connector {
+  text-align: center;
+  padding: 10px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--tie);
+}
+.connector::before,
+.connector::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--tie-bg));
+}
+.connector::after {
+  background: linear-gradient(to left, transparent, var(--tie-bg));
+}
+
+/* ──────── verdict ──────── */
+.verdict-wrap {
+  opacity: 0;
+  animation: rise 0.5s ease forwards;
+  text-align: center;
+  margin-top: 24px;
+  padding: 0 8px;
+}
+.verdict-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.verdict-tally {
+  font-size: 0.85rem;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.verdict-tally b { color: var(--bright); }
+.verdict-big {
+  font-size: 7rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 20px;
+  animation: throb 2.5s ease infinite;
+}
+.verdict-big.yes { color: var(--yes); text-shadow: 0 0 80px #22d3a040; }
+.verdict-big.no  { color: var(--no);  text-shadow: 0 0 80px #f43f5e40; }
+@keyframes throb {
+  0%, 100% { opacity: 1;    transform: scale(1); }
+  50%       { opacity: 0.9; transform: scale(0.98); }
+}
+.verdict-detail {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.75;
+  max-width: 480px;
+  margin: 0 auto;
+  text-align: left;
+}
+.verdict-detail strong { color: var(--bright); }
+.verdict-detail code {
+  background: var(--surface);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.85em;
+  color: #7dd3fc;
+}
 </style>
 </head>
 <body>
 
-<h1>Binary YES / NO</h1>
-<p class="tagline">Enter any positive integer — its binary pattern decides the answer.</p>
+<noscript>⚠ JavaScript is blocked here. Download this file → open it in Chrome or Firefox.</noscript>
+
+<div class="logo">BINARY <span class="y">YES</span> / <span class="n">NO</span></div>
+<p class="tagline">Enter any integer. Its binary structure decides the answer — and if it ties, we cascade through deeper transforms until one side wins.</p>
 
 <div class="input-row">
   <input type="text" id="numInput" placeholder="e.g. 2732" inputmode="numeric" autocomplete="off" />
-  <button id="analyzeBtn">Analyze</button>
+  <button class="decode-btn" id="decodeBtn">DECODE</button>
 </div>
+<p class="jstip">If nothing happens: <b>download this file</b> and open it in Chrome / Firefox</p>
 
-<div id="errorMsg" class="error-msg" style="display:none"></div>
-
-<div id="result">
-  <div class="card">
-    <div class="num-display" id="displayNum"></div>
-    <div class="num-label">decimal &nbsp;→&nbsp; binary</div>
-    <div class="bits-wrap" id="bitsDisplay"></div>
-
-    <div class="balance-row">
-      <div class="balance-lbl" style="color:#4ade80;text-align:right" id="onesLbl"></div>
-      <div class="balance-track"><div id="balanceFill"></div></div>
-      <div class="balance-lbl" style="color:#f87171" id="zerosLbl"></div>
-    </div>
-    <div style="text-align:center;font-size:0.75rem;color:#475569;margin-bottom:0" id="balanceNote"></div>
-
-    <div class="verdict-wrap">
-      <div class="verdict" id="verdictText"></div>
-    </div>
-
-    <div class="reason" id="reasonText"></div>
-  </div>
-
-  <div class="card">
-    <div class="stats" id="statsRow"></div>
-  </div>
-</div>
+<div id="cascade"></div>
 
 <script>
-function analyze(raw) {
-  const n = parseInt(raw, 10);
-  if (isNaN(n) || n < 0 || !Number.isFinite(n)) return null;
-  if (n > Number.MAX_SAFE_INTEGER) return null;
-
-  const binary = n.toString(2);
-  const ones  = binary.split('').filter(b => b === '1').length;
-  const zeros = binary.length - ones;
-  const isTie = ones === zeros;
-
-  let verdict, reason;
-
-  if (ones > zeros) {
-    verdict = 'YES';
-    reason  = `<strong>${ones} ones</strong> outnumber <strong>${zeros} zeros</strong> — ones win.`;
-  } else if (zeros > ones) {
-    verdict = 'NO';
-    reason  = `<strong>${zeros} zeros</strong> outnumber <strong>${ones} ones</strong> — zeros win.`;
-  } else {
-    // Tiebreaker: sum of bit positions (0 = rightmost) of all 1-bits.
-    // Odd sum → YES, even sum → NO.
-    // This is unique to each number — two different numbers with the same
-    // ones/zeros count still have different bit positions, giving different verdicts.
-    let posSum = 0;
-    for (let i = 0; i < binary.length; i++) {
-      if (binary[i] === '1') posSum += (binary.length - 1 - i);
+// ── Transforms: each one derives a new BigInt from n ──
+const TRANSFORMS = [
+  {
+    step:  '01',
+    title: 'The number itself',
+    exprFn: n  => `n`,
+    valueFn: n => n
+  },
+  {
+    step:  '02',
+    title: 'n squared',
+    exprFn: n  => `n²`,
+    valueFn: n => n * n
+  },
+  {
+    step:  '03',
+    title: 'n multiplied by prime 37',
+    exprFn: n  => `n × 37`,
+    valueFn: n => n * 37n
+  },
+  {
+    step:  '04',
+    title: 'n cubed',
+    exprFn: n  => `n³`,
+    valueFn: n => n * n * n
+  },
+  {
+    step:  '05',
+    title: 'Mirror sum: n + reversed digits',
+    exprFn: n  => `n + rev(n)`,
+    valueFn: n => {
+      const rev = BigInt([...n.toString()].reverse().join(''));
+      return n + rev;
     }
-    verdict = (posSum % 2 === 1) ? 'YES' : 'NO';
-    reason  = `Equal <strong>${ones} ones</strong> and <strong>${zeros} zeros</strong> — it's a tie.`
-            + ` Tiebreaker: sum of 1-bit positions = <strong>${posSum}</strong>`
-            + ` (${posSum % 2 === 1 ? 'odd → YES' : 'even → NO'}).`;
+  },
+  {
+    step:  '06',
+    title: 'n⁴ residue (mod 2⁴⁰)',
+    exprFn: n  => `n⁴ mod 2⁴⁰`,
+    valueFn: n => (n * n * n * n) % (2n ** 40n)
   }
+];
 
-  return { n, binary, ones, zeros, isTie, verdict, reason };
+function countOnes(bin) {
+  let c = 0;
+  for (const ch of bin) if (ch === '1') c++;
+  return c;
 }
 
-function renderBits(binary) {
-  const wrap = document.getElementById('bitsDisplay');
-  wrap.innerHTML = '';
-  for (let i = 0; i < binary.length; i++) {
-    if (i > 0 && (binary.length - i) % 4 === 0) {
-      const sep = document.createElement('div');
-      sep.className = 'bit-sep';
-      wrap.appendChild(sep);
-    }
-    const el = document.createElement('div');
-    el.className = 'bit ' + (binary[i] === '1' ? 'bit-1' : 'bit-0');
-    el.textContent = binary[i];
-    wrap.appendChild(el);
+function fmtBig(n) {
+  const s = n.toString();
+  if (s.length <= 15) {
+    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   }
+  return s.slice(0, 5) + '…' + s.slice(-5);
+}
+
+function analyze(raw) {
+  const num = parseInt(raw.replace(/,/g, ''), 10);
+  if (!Number.isFinite(num) || isNaN(num) || num < 0) return null;
+  const n = BigInt(Math.abs(num));
+
+  let totalOnes = 0, totalZeros = 0;
+  const steps = [];
+
+  for (const t of TRANSFORMS) {
+    const val = t.valueFn(n);
+    const bin = val.toString(2);
+    const ones  = countOnes(bin);
+    const zeros = bin.length - ones;
+    totalOnes  += ones;
+    totalZeros += zeros;
+
+    const state = totalOnes === totalZeros ? 'tie'
+                : totalOnes  > totalZeros  ? 'yes'
+                : 'no';
+
+    steps.push({
+      step:   t.step,
+      title:  t.title,
+      expr:   t.exprFn(n),
+      fmtVal: fmtBig(val),
+      bin,
+      roundOnes:  ones,
+      roundZeros: zeros,
+      runOnes:    totalOnes,
+      runZeros:   totalZeros,
+      state
+    });
+
+    if (state !== 'tie') break;
+  }
+
+  const last   = steps[steps.length - 1];
+  const verdict = last.runOnes > last.runZeros ? 'YES' : 'NO';
+  return { n: num, steps, verdict, totalOnes, totalZeros };
+}
+
+// ── Render bits row ──
+function renderBits(bin, state, baseDelay) {
+  const MAX = 52;
+  const show = bin.length > MAX ? bin.slice(0, MAX) : bin;
+  const cls  = state === 'yes' ? 'b1y' : state === 'no' ? 'b1n' : 'b1t';
+  let html = '<div class="bits-row">';
+  for (let i = 0; i < show.length; i++) {
+    if (i > 0 && (show.length - i) % 4 === 0) {
+      html += '<div class="bsep"></div>';
+    }
+    const delay = (baseDelay + i * 0.018).toFixed(3);
+    html += `<div class="bit ${show[i] === '1' ? cls : 'b0'}" style="animation-delay:${delay}s">${show[i]}</div>`;
+  }
+  html += '</div>';
+  if (bin.length > MAX) {
+    html += `<div class="bits-more">… ${bin.length - MAX} more bits hidden (${bin.length} total)</div>`;
+  }
+  return html;
+}
+
+// ── Render tug-of-war bar ──
+function renderTug(ones, zeros) {
+  const total = ones + zeros;
+  if (total === 0) return '';
+  if (ones === zeros) {
+    return `<div class="tug-track"><div class="tug-tie-bar">⚖  TIE  ${ones} vs ${zeros}</div></div>`;
+  }
+  const yp = Math.max(8, Math.round((ones / total) * 100));
+  const np = 100 - yp;
+  return `
+    <div class="tug-track">
+      <div class="tug-yes" style="width:${yp}%">${yp > 18 ? yp + '%' : ''}</div>
+      <div class="tug-no"  style="width:${np}%">${np > 18 ? np + '%' : ''}</div>
+    </div>
+    <div class="tug-counts">
+      <span class="tc-yes">▲ ${ones} ones</span>
+      <span class="tc-no">${zeros} zeros ▲</span>
+    </div>`;
+}
+
+// ── Build reason text ──
+function buildReason(result) {
+  const { n, steps, verdict, totalOnes, totalZeros } = result;
+  const s0 = steps[0];
+  if (steps.length === 1) {
+    return `<strong>${n.toLocaleString()}</strong> in binary is <code>${s0.bin}</code>. `
+      + (s0.roundOnes > s0.roundZeros
+          ? `<strong>${s0.roundOnes} ones</strong> outnumber ${s0.roundZeros} zeros immediately.`
+          : `<strong>${s0.roundZeros} zeros</strong> outnumber ${s0.roundOnes} ones immediately.`);
+  }
+  const last = steps[steps.length - 1];
+  return `<strong>${n.toLocaleString()}</strong> started as a tie (${s0.roundOnes}–${s0.roundZeros}), `
+    + `so we ran ${steps.length - 1} deeper transform${steps.length > 2 ? 's' : ''} — `
+    + `squaring, scaling by a prime, cubing, and more — accumulating `
+    + `<strong>${totalOnes + totalZeros} total bits</strong> across all rounds. `
+    + `Final score: <strong>${totalOnes} ones</strong> vs <strong>${totalZeros} zeros</strong> → <strong>${verdict}</strong>.`;
+}
+
+// ── Main render ──
+function render(result) {
+  const { steps, verdict, totalOnes, totalZeros } = result;
+  let html = '';
+  let baseDelay = 0;
+
+  steps.forEach((s, i) => {
+    const cardDelay = (i * 0.38).toFixed(2);
+    const bitsDelay = baseDelay + 0.12;
+
+    html += `<div class="step-wrap" style="animation-delay:${cardDelay}s">
+      <div class="step-card state-${s.state}">
+        <div class="step-top">
+          <div>
+            <div class="step-num">STEP ${s.step}</div>
+            <div class="step-title">${s.title}</div>
+          </div>
+          <div class="state-badge badge-${s.state}">
+            ${s.state === 'tie' ? '⚖ TIE' : s.state === 'yes' ? '▲ ONES LEAD' : '▼ ZEROS LEAD'}
+          </div>
+        </div>
+
+        <div class="eq-box">
+          <div class="eq-line">
+            <span class="eq-op">${s.expr}</span>
+            <span class="eq-res"> = ${s.fmtVal}</span>
+          </div>
+        </div>
+
+        <div class="bits-box">${renderBits(s.bin, s.state, bitsDelay)}</div>
+
+        <div class="round-stats">
+          This round:&nbsp;
+          <span class="rs1">+${s.roundOnes} ones</span>&nbsp;/&nbsp;
+          <span class="rs0">+${s.roundZeros} zeros</span>&nbsp;·&nbsp;${s.bin.length} bits
+        </div>
+
+        <div class="tug-label">Running total across all steps</div>
+        ${renderTug(s.runOnes, s.runZeros)}
+      </div>
+    </div>`;
+
+    // connector
+    if (s.state === 'tie' && i < steps.length - 1) {
+      const cDelay = (i * 0.38 + 0.3).toFixed(2);
+      html += `<div class="step-wrap" style="animation-delay:${cDelay}s">
+        <div class="connector">TIE DETECTED — DEEPENING THE SEARCH</div>
+      </div>`;
+    }
+
+    baseDelay += 0.12 + s.bin.length * 0.018 + 0.1;
+  });
+
+  // verdict
+  const vDelay = (steps.length * 0.38 + 0.3).toFixed(2);
+  html += `<div class="verdict-wrap" style="animation-delay:${vDelay}s">
+    <div class="verdict-label">Final verdict</div>
+    <div class="verdict-tally">
+      <b>${totalOnes}</b> ones &nbsp;vs&nbsp; <b>${totalZeros}</b> zeros
+    </div>
+    <div class="verdict-big ${verdict === 'YES' ? 'yes' : 'no'}">${verdict}</div>
+    <div class="verdict-detail">${buildReason(result)}</div>
+  </div>`;
+
+  document.getElementById('cascade').innerHTML = html;
 }
 
 function run() {
-  const raw = document.getElementById('numInput').value.trim().replace(/,/g, '');
-  const errEl = document.getElementById('errorMsg');
-
-  if (!raw) { errEl.style.display = 'none'; return; }
-
-  const r = analyze(raw);
-  if (!r) {
-    errEl.textContent = 'Please enter a positive integer (up to ' + Number.MAX_SAFE_INTEGER.toLocaleString() + ').';
-    errEl.style.display = 'block';
-    document.getElementById('result').style.display = 'none';
+  const raw = document.getElementById('numInput').value.trim();
+  if (!raw) return;
+  const result = analyze(raw);
+  if (!result) {
+    document.getElementById('cascade').innerHTML =
+      '<p style="color:var(--no);text-align:center;margin-top:24px;font-size:0.85rem">Please enter a valid positive integer.</p>';
     return;
   }
-  errEl.style.display = 'none';
-
-  document.getElementById('displayNum').textContent = r.n.toLocaleString();
-
-  renderBits(r.binary);
-
-  // Balance bar
-  const pct = Math.round((r.ones / r.binary.length) * 100);
-  const fill = document.getElementById('balanceFill');
-  fill.className = r.ones >= r.zeros ? 'balance-fill-yes' : 'balance-fill-no';
-  fill.style.width = pct + '%';
-  document.getElementById('onesLbl').textContent = r.ones + ' ones';
-  document.getElementById('zerosLbl').textContent = r.zeros + ' zeros';
-  document.getElementById('balanceNote').textContent =
-    r.isTie ? '⚖ Perfect tie — tiebreaker applied' : '';
-
-  // Verdict
-  const vEl = document.getElementById('verdictText');
-  vEl.textContent = r.verdict;
-  vEl.className = 'verdict ' + (r.verdict === 'YES' ? 'verdict-yes' : 'verdict-no');
-
-  document.getElementById('reasonText').innerHTML = r.reason;
-
-  // Stats
-  document.getElementById('statsRow').innerHTML = `
-    <div class="stat"><div class="stat-val s-ones">${r.ones}</div><div class="stat-lbl">Ones (1s)</div></div>
-    <div class="stat"><div class="stat-val s-zeros">${r.zeros}</div><div class="stat-lbl">Zeros (0s)</div></div>
-    <div class="stat"><div class="stat-val s-bits">${r.binary.length}</div><div class="stat-lbl">Total bits</div></div>
-    <div class="stat"><div class="stat-val ${r.verdict === 'YES' ? 's-ver-yes' : 's-ver-no'}">${r.verdict}</div><div class="stat-lbl">Verdict</div></div>
-  `;
-
-  const res = document.getElementById('result');
-  res.style.display = 'block';
-  res.style.animation = 'none';
-  void res.offsetHeight; // reflow to restart animation
-  res.style.animation = '';
+  render(result);
 }
 
-document.getElementById('analyzeBtn').addEventListener('click', run);
-document.getElementById('numInput').addEventListener('keydown', function(e) {
+document.getElementById('decodeBtn').addEventListener('click', run);
+document.getElementById('numInput').addEventListener('keydown', e => {
   if (e.key === 'Enter') run();
 });
 </script>
-
 </body>
 </html>
