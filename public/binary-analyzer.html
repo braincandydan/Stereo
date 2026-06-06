@@ -3,638 +3,520 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Binary YES / NO — Cascade Decoder</title>
+<title>Binary YES / NO</title>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
 :root {
-  --bg:      #040912;
-  --surface: #070f1d;
-  --card:    #0b1829;
-  --border:  #12243a;
-  --hi:      #1a3550;
-  --accent:  #0ea5e9;
-  --yes:     #22d3a0;
-  --yes-bg:  #041f16;
-  --no:      #f43f5e;
-  --no-bg:   #1f040b;
-  --tie:     #f59e0b;
-  --tie-bg:  #1f1004;
-  --text:    #7a9db8;
-  --bright:  #ddeeff;
-  --muted:   #1d3852;
+  --bg:     #040912; --surf:   #070f1d; --card:   #0b1829;
+  --bdr:    #12243a; --hi:     #1a3550; --acc:    #0ea5e9;
+  --yes:    #22d3a0; --yes-bg: #041f16; --no:     #f43f5e;
+  --no-bg:  #1f040b; --tie:    #f59e0b; --tie-bg: #1f1004;
+  --txt:    #7a9db8; --br:     #ddeeff; --mu:     #1d3852;
+  --strip:  #2a1a00;
 }
+body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--txt); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:40px 16px 100px; }
+noscript { display:block; background:#450a0a; color:#fca5a5; border:1px solid var(--no); border-radius:10px; padding:14px 22px; margin-bottom:24px; text-align:center; font-size:.9rem; font-weight:600; max-width:500px; width:100%; }
 
-body {
-  font-family: 'Segoe UI', system-ui, sans-serif;
-  background: var(--bg);
-  color: var(--text);
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 48px 16px 100px;
-}
+.logo { font-size:2.6rem; font-weight:900; letter-spacing:-.04em; color:var(--br); text-align:center; margin-bottom:6px; }
+.logo .y{color:var(--yes);} .logo .n{color:var(--no);}
+.tagline { color:var(--txt); font-size:.78rem; text-align:center; margin-bottom:26px; max-width:420px; line-height:1.5; }
 
-/* ──────── noscript / warning ──────── */
-noscript {
-  display: block;
-  background: #450a0a;
-  color: #fca5a5;
-  border: 1px solid #f43f5e;
-  border-radius: 10px;
-  padding: 14px 22px;
-  margin-bottom: 28px;
-  text-align: center;
-  font-size: 0.9rem;
-  font-weight: 600;
-  max-width: 500px;
-  width: 100%;
-}
+.tabs { display:flex; gap:5px; margin-bottom:26px; background:var(--surf); border-radius:10px; padding:4px; }
+.tab { padding:8px 20px; border-radius:7px; border:none; background:transparent; color:var(--txt); font-size:.8rem; font-weight:800; letter-spacing:.07em; cursor:pointer; transition:all .15s; }
+.tab.active { background:var(--acc); color:#000; }
+.tab:hover:not(.active) { background:var(--hi); color:var(--br); }
 
-/* ──────── header ──────── */
-.logo {
-  font-size: 3rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  color: var(--bright);
-  text-align: center;
-  margin-bottom: 8px;
-}
-.logo .y { color: var(--yes); }
-.logo .n { color: var(--no);  }
-.tagline {
-  color: var(--text);
-  font-size: 0.82rem;
-  text-align: center;
-  max-width: 400px;
-  line-height: 1.6;
-  margin-bottom: 36px;
-}
+.panel { display:none; width:100%; max-width:580px; }
+.panel.active { display:block; }
 
-/* ──────── input ──────── */
-.input-row {
-  display: flex;
-  gap: 10px;
-  max-width: 460px;
-  width: 100%;
-  margin-bottom: 8px;
-}
-input {
-  flex: 1; min-width: 0;
-  background: var(--card);
-  border: 2px solid var(--hi);
-  border-radius: 10px;
-  color: var(--bright);
-  font-size: 1.5rem;
-  font-weight: 700;
-  font-family: 'Courier New', monospace;
-  padding: 13px 18px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px #0ea5e918;
-}
-input::placeholder { color: var(--muted); font-weight: 400; font-size: 1rem; }
-.decode-btn {
-  background: var(--accent);
-  color: #000;
-  border: none;
-  border-radius: 10px;
-  padding: 13px 22px;
-  font-size: 0.88rem;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  cursor: pointer;
-  transition: background 0.15s, transform 0.1s;
-  white-space: nowrap;
-}
-.decode-btn:hover  { background: #38bdf8; }
-.decode-btn:active { transform: scale(0.96); }
+/* ── input row ── */
+.input-row { display:flex; gap:10px; margin-bottom:7px; }
+input[type=text] { flex:1; min-width:0; background:var(--card); border:2px solid var(--hi); border-radius:10px; color:var(--br); font-size:1.25rem; font-weight:600; font-family:'Courier New',monospace; padding:12px 16px; outline:none; transition:border-color .2s,box-shadow .2s; }
+input[type=text]:focus { border-color:var(--acc); box-shadow:0 0 0 3px #0ea5e918; }
+input[type=text]::placeholder { color:var(--mu); font-weight:400; font-size:.95rem; }
+.btn { background:var(--acc); color:#000; border:none; border-radius:10px; padding:12px 20px; font-size:.82rem; font-weight:900; letter-spacing:.1em; cursor:pointer; transition:background .15s,transform .1s; white-space:nowrap; }
+.btn:hover{background:#38bdf8;} .btn:active{transform:scale(.96);}
+.jstip { font-size:.68rem; color:var(--mu); text-align:center; margin-bottom:30px; }
+.jstip b{color:var(--acc);}
 
-.jstip {
-  font-size: 0.72rem;
-  color: var(--muted);
-  text-align: center;
-  margin-bottom: 44px;
-}
-.jstip b { color: var(--accent); }
+/* ── step cards (single mode) ── */
+.step-wrap { opacity:0; transform:translateY(12px); animation:rise .35s ease forwards; margin-bottom:6px; }
+@keyframes rise { to{opacity:1;transform:none;} }
+.step-card { background:var(--card); border:1px solid var(--bdr); border-radius:13px; padding:18px; position:relative; overflow:hidden; }
+.step-card::after { content:''; position:absolute; top:0;left:0;right:0; height:2px; border-radius:13px 13px 0 0; }
+.state-tie { border-color:var(--tie-bg); } .state-tie::after { background:var(--tie); }
+.state-yes { border-color:#0a3020; box-shadow:0 0 18px #22d3a015; } .state-yes::after { background:var(--yes); }
+.state-no  { border-color:#28060f; box-shadow:0 0 18px #f43f5e15; } .state-no::after  { background:var(--no); }
+.step-top { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:12px; }
+.step-num { font-size:.62rem; font-weight:800; letter-spacing:.14em; color:var(--acc); }
+.step-title { font-size:.76rem; font-weight:700; color:var(--br); margin-top:2px; }
+.sbadge { font-size:.62rem; font-weight:800; letter-spacing:.08em; padding:3px 9px; border-radius:99px; flex-shrink:0; }
+.sb-tie{background:var(--tie-bg);color:var(--tie);} .sb-yes{background:var(--yes-bg);color:var(--yes);} .sb-no{background:var(--no-bg);color:var(--no);}
+.eq-box { background:var(--surf); border-radius:8px; padding:9px 13px; margin-bottom:11px; font-family:'Courier New',monospace; font-size:1rem; font-weight:700; color:var(--br); }
+.eq-op{color:var(--acc);} .eq-res{color:var(--txt);font-size:.82rem;}
+.bits-box { background:#020710; border-radius:7px; padding:9px 9px 7px; margin-bottom:11px; overflow-x:auto; }
+.bits-row { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
+.bit { width:24px; height:24px; border-radius:4px; display:inline-flex; align-items:center; justify-content:center; font-family:'Courier New',monospace; font-size:.78rem; font-weight:800; flex-shrink:0; opacity:0; animation:bitPop .1s ease forwards; }
+@keyframes bitPop{to{opacity:1;}}
+.b1y{background:var(--yes-bg);color:var(--yes);}
+.b1n{background:var(--no-bg);color:var(--no);}
+.b1t{background:#0d2535;color:var(--acc);}
+.b0{background:#060d1c;color:#1a3050;}
+.bsep{width:3px;}
+/* stripped leading bit */
+.bit-stripped { background:var(--strip)!important; color:#6b4a0a!important; text-decoration:line-through; box-shadow:none!important; }
+.strip-note { font-size:.6rem; color:#6b4a0a; margin-top:4px; }
+.bits-more{font-size:.62rem;color:var(--mu);margin-top:4px;}
+.rstat { display:flex; align-items:center; gap:5px; font-size:.7rem; color:var(--txt); margin-bottom:10px; }
+.rs1{color:var(--yes);font-weight:700;} .rs0{color:var(--no);font-weight:700;}
+.tug-lbl{font-size:.6rem;font-weight:800;letter-spacing:.1em;color:var(--mu);text-transform:uppercase;margin-bottom:4px;}
+.tug-track{display:flex;height:16px;border-radius:5px;overflow:hidden;background:var(--surf);margin-bottom:3px;}
+.tug-y{background:var(--yes);display:flex;align-items:center;justify-content:flex-end;padding-right:5px;font-size:.6rem;font-weight:800;color:#000;transition:width .5s;}
+.tug-n{background:var(--no);display:flex;align-items:center;padding-left:5px;font-size:.6rem;font-weight:800;color:#000;transition:width .5s;}
+.tug-tie2{background:var(--tie);width:100%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:800;color:#000;}
+.tug-cts{display:flex;justify-content:space-between;font-size:.67rem;}
+.tc-y{color:var(--yes);} .tc-n{color:var(--no);}
+.connector{text-align:center;padding:8px 0;display:flex;align-items:center;gap:10px;font-size:.65rem;font-weight:800;letter-spacing:.12em;color:var(--tie);}
+.connector::before,.connector::after{content:'';flex:1;height:1px;background:var(--tie-bg);}
+.verdict-wrap{opacity:0;animation:rise .5s ease forwards;text-align:center;margin-top:20px;}
+.verd-lbl{font-size:.62rem;font-weight:800;letter-spacing:.16em;color:var(--mu);text-transform:uppercase;margin-bottom:6px;}
+.verd-tally{font-size:.8rem;color:var(--txt);margin-bottom:12px;} .verd-tally b{color:var(--br);}
+.verd-big{font-size:6rem;font-weight:900;letter-spacing:-.04em;line-height:1;margin-bottom:16px;animation:throb 2.5s ease infinite;}
+.verd-big.yes{color:var(--yes);text-shadow:0 0 70px #22d3a040;} .verd-big.no{color:var(--no);text-shadow:0 0 70px #f43f5e40;}
+@keyframes throb{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.88;transform:scale(.98);}}
+.verd-detail{background:var(--card);border:1px solid var(--bdr);border-radius:11px;padding:14px 18px;font-size:.78rem;color:var(--txt);line-height:1.75;max-width:480px;margin:0 auto;text-align:left;}
+.verd-detail strong{color:var(--br);}
+.verd-detail code{background:var(--surf);padding:1px 5px;border-radius:3px;font-family:'Courier New',monospace;font-size:.85em;color:#7dd3fc;}
 
-/* ──────── cascade container ──────── */
-#cascade { width: 100%; max-width: 560px; }
+/* ── text mode specifics ── */
+.char-grid { display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px; }
+.char-card { background:var(--surf); border:1px solid var(--bdr); border-radius:8px; padding:8px 10px; text-align:center; min-width:54px; }
+.char-glyph { font-size:1.4rem; font-weight:700; color:var(--br); font-family:'Courier New',monospace; line-height:1; margin-bottom:3px; }
+.char-code { font-size:.6rem; color:var(--mu); margin-bottom:4px; }
+.char-bin { font-size:.55rem; font-family:'Courier New',monospace; color:var(--acc); letter-spacing:.02em; margin-bottom:5px; word-break:break-all; }
+.char-verdict { font-size:.65rem; font-weight:800; padding:2px 6px; border-radius:99px; }
+.cv-yes{background:var(--yes-bg);color:var(--yes);} .cv-no{background:var(--no-bg);color:var(--no);} .cv-tie{background:var(--tie-bg);color:var(--tie);}
 
-/* ──────── step wrapper (animation) ──────── */
-.step-wrap {
-  opacity: 0;
-  transform: translateY(14px);
-  animation: rise 0.4s ease forwards;
-  margin-bottom: 6px;
-}
-@keyframes rise {
-  to { opacity: 1; transform: none; }
-}
+/* ── batch controls ── */
+.batch-controls { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:20px; }
+.ctrl-group { display:flex; flex-direction:column; gap:5px; flex:1; min-width:130px; }
+.ctrl-label { font-size:.62rem; font-weight:800; letter-spacing:.1em; color:var(--mu); text-transform:uppercase; }
+select { background:var(--card); border:1.5px solid var(--hi); border-radius:8px; color:var(--br); font-size:.82rem; font-weight:600; padding:9px 11px; outline:none; cursor:pointer; width:100%; }
+select:focus{border-color:var(--acc);}
+.run-btn{align-self:flex-end; padding:10px 24px;}
 
-/* ──────── step card ──────── */
-.step-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
-  position: relative;
-  overflow: hidden;
-}
-.step-card::after {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  border-radius: 14px 14px 0 0;
-}
-.step-card.state-tie  { border-color: var(--tie-bg); }
-.step-card.state-tie::after  { background: var(--tie); }
-.step-card.state-yes  { border-color: #0a3020; box-shadow: 0 0 20px #22d3a018; }
-.step-card.state-yes::after  { background: var(--yes); }
-.step-card.state-no   { border-color: #280610; box-shadow: 0 0 20px #f43f5e18; }
-.step-card.state-no::after   { background: var(--no); }
+/* batch results */
+.stat-cards{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;}
+.sc{background:var(--card);border:1px solid var(--bdr);border-radius:10px;padding:13px 14px;flex:1;min-width:80px;text-align:center;}
+.sc-val{font-size:1.7rem;font-weight:800;line-height:1;} .sc-lbl{font-size:.6rem;color:var(--mu);text-transform:uppercase;letter-spacing:.08em;margin-top:4px;}
+.section{background:var(--card);border:1px solid var(--bdr);border-radius:12px;padding:16px;margin-bottom:12px;}
+.sec-title{font-size:.65rem;font-weight:800;letter-spacing:.12em;color:var(--mu);text-transform:uppercase;margin-bottom:12px;}
+.hbar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+.hbar-row:last-child{margin-bottom:0;}
+.hbar-lbl{font-size:.72rem;font-weight:700;text-align:right;flex-shrink:0;width:56px;}
+.hbar-track{flex:1;background:var(--surf);border-radius:4px;height:20px;overflow:hidden;}
+.hbar-fill{height:100%;border-radius:4px;display:flex;align-items:center;padding-left:7px;font-size:.68rem;font-weight:800;min-width:20px;transition:width .5s ease;}
+.hbar-pct{font-size:.7rem;color:var(--txt);width:32px;flex-shrink:0;text-align:right;}
 
-/* step top row */
-.step-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
-}
-.step-num {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  color: var(--accent);
-}
-.step-title {
-  font-size: 0.8rem;
-  font-weight: 700;
-  color: var(--bright);
-  margin-top: 2px;
-}
-.state-badge {
-  font-size: 0.65rem;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 99px;
-}
-.badge-tie { background: var(--tie-bg);  color: var(--tie); }
-.badge-yes { background: var(--yes-bg);  color: var(--yes); }
-.badge-no  { background: var(--no-bg);   color: var(--no);  }
+.grid-wrap{display:flex;flex-wrap:wrap;gap:2px;}
+.gcell{width:13px;height:13px;border-radius:2px;cursor:default;transition:transform .1s;flex-shrink:0;}
+.gcell:hover{transform:scale(1.5);z-index:1;}
+.gcell.gyes{background:var(--yes);opacity:.8;}
+.gcell.gno{background:var(--no);opacity:.8;}
+.gcell.gstep2{outline:1px solid rgba(255,255,255,.25);}
 
-/* equation display */
-.eq-box {
-  background: var(--surface);
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 14px;
-  font-family: 'Courier New', monospace;
-}
-.eq-line {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--bright);
-  line-height: 1.5;
-}
-.eq-op   { color: var(--accent); }
-.eq-res  { color: var(--text); font-size: 0.85rem; }
+.steps-row{display:flex;align-items:flex-end;gap:6px;height:72px;padding:0 2px;}
+.step-bar{flex:1;border-radius:4px 4px 0 0;min-height:2px;display:flex;align-items:flex-start;justify-content:center;padding-top:3px;font-size:.6rem;font-weight:800;transition:height .5s;}
+.sb1{background:#1e2d3d;color:#4a6a8a;} .sb2{background:#0d2535;color:var(--acc);}
+.sb3{background:#0a2a1a;color:var(--yes);} .sb4{background:#2a1a00;color:var(--tie);}
+.sb5,.sb6{background:#2a0a10;color:var(--no);}
+.steps-xlbl{display:flex;gap:6px;margin-top:4px;}
+.sx{flex:1;text-align:center;font-size:.6rem;color:var(--mu);}
 
-/* bits display */
-.bits-box {
-  background: #020710;
-  border-radius: 8px;
-  padding: 10px 10px 8px;
-  margin-bottom: 12px;
-  overflow-x: auto;
-}
-.bits-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  align-items: center;
-}
-.bit {
-  width: 26px;
-  height: 26px;
-  border-radius: 5px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-family: 'Courier New', monospace;
-  font-size: 0.82rem;
-  font-weight: 800;
-  flex-shrink: 0;
-  opacity: 0;
-  animation: bitPop 0.12s ease forwards;
-}
-@keyframes bitPop { to { opacity: 1; } }
-.b1y { background: var(--yes-bg); color: var(--yes); }
-.b1n { background: var(--no-bg);  color: var(--no);  }
-.b1t { background: #0d2535;       color: var(--accent); }
-.b0  { background: #060d1c;       color: #1a3050; }
-.bsep { width: 4px; }
-
-.bits-more { font-size: 0.65rem; color: var(--muted); margin-top: 5px; }
-
-/* round stats */
-.round-stats {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
-  color: var(--text);
-  margin-bottom: 12px;
-}
-.rs1 { color: var(--yes); font-weight: 700; }
-.rs0 { color: var(--no);  font-weight: 700; }
-
-/* tug-of-war bar */
-.tug-label {
-  font-size: 0.62rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-bottom: 5px;
-}
-.tug-track {
-  display: flex;
-  height: 18px;
-  border-radius: 5px;
-  overflow: hidden;
-  background: var(--surface);
-  margin-bottom: 4px;
-}
-.tug-yes {
-  background: var(--yes);
-  display: flex; align-items: center; justify-content: flex-end; padding-right: 6px;
-  font-size: 0.64rem; font-weight: 800; color: #000;
-  transition: width 0.5s ease;
-}
-.tug-no {
-  background: var(--no);
-  display: flex; align-items: center; padding-left: 6px;
-  font-size: 0.64rem; font-weight: 800; color: #000;
-  transition: width 0.5s ease;
-}
-.tug-tie-bar {
-  background: var(--tie);
-  width: 100%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.64rem; font-weight: 800; color: #000;
-}
-.tug-counts {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.7rem;
-}
-.tc-yes { color: var(--yes); }
-.tc-no  { color: var(--no);  }
-
-/* connector between tied steps */
-.connector {
-  text-align: center;
-  padding: 10px 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  color: var(--tie);
-}
-.connector::before,
-.connector::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: linear-gradient(to right, transparent, var(--tie-bg));
-}
-.connector::after {
-  background: linear-gradient(to left, transparent, var(--tie-bg));
-}
-
-/* ──────── verdict ──────── */
-.verdict-wrap {
-  opacity: 0;
-  animation: rise 0.5s ease forwards;
-  text-align: center;
-  margin-top: 24px;
-  padding: 0 8px;
-}
-.verdict-label {
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-.verdict-tally {
-  font-size: 0.85rem;
-  color: var(--text);
-  margin-bottom: 16px;
-}
-.verdict-tally b { color: var(--bright); }
-.verdict-big {
-  font-size: 7rem;
-  font-weight: 900;
-  letter-spacing: -0.04em;
-  line-height: 1;
-  margin-bottom: 20px;
-  animation: throb 2.5s ease infinite;
-}
-.verdict-big.yes { color: var(--yes); text-shadow: 0 0 80px #22d3a040; }
-.verdict-big.no  { color: var(--no);  text-shadow: 0 0 80px #f43f5e40; }
-@keyframes throb {
-  0%, 100% { opacity: 1;    transform: scale(1); }
-  50%       { opacity: 0.9; transform: scale(0.98); }
-}
-.verdict-detail {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 16px 20px;
-  font-size: 0.82rem;
-  color: var(--text);
-  line-height: 1.75;
-  max-width: 480px;
-  margin: 0 auto;
-  text-align: left;
-}
-.verdict-detail strong { color: var(--bright); }
-.verdict-detail code {
-  background: var(--surface);
-  padding: 1px 6px;
-  border-radius: 4px;
-  font-family: 'Courier New', monospace;
-  font-size: 0.85em;
-  color: #7dd3fc;
-}
+.bl-table{width:100%;border-collapse:collapse;font-size:.72rem;}
+.bl-table th{color:var(--mu);font-size:.6rem;text-transform:uppercase;letter-spacing:.08em;padding:5px 7px;text-align:left;border-bottom:1px solid var(--bdr);}
+.bl-table td{padding:5px 7px;border-bottom:1px solid var(--bdr);}
+.bl-table tr:last-child td{border-bottom:none;}
+.mini-bar{height:5px;border-radius:3px;display:inline-block;vertical-align:middle;}
+.insight{background:var(--surf);border:1px solid var(--hi);border-radius:9px;padding:13px 15px;margin-top:4px;font-size:.76rem;line-height:1.75;color:var(--txt);}
+.insight strong{color:var(--br);} .hl-y{color:var(--yes);font-weight:700;} .hl-n{color:var(--no);font-weight:700;} .hl-t{color:var(--tie);font-weight:700;}
 </style>
 </head>
 <body>
 
-<noscript>⚠ JavaScript is blocked here. Download this file → open it in Chrome or Firefox.</noscript>
+<noscript>⚠ JavaScript is blocked here — download this file and open it in Chrome or Firefox.</noscript>
 
 <div class="logo">BINARY <span class="y">YES</span> / <span class="n">NO</span></div>
-<p class="tagline">Enter any integer. Its binary structure decides the answer — and if it ties, we cascade through deeper transforms until one side wins.</p>
+<p class="tagline">Enter any number <em>or</em> a word/phrase — binary decides the answer.<br>The leading 1 is always stripped for a fair 50/50 baseline.</p>
 
-<div class="input-row">
-  <input type="text" id="numInput" placeholder="e.g. 2732" inputmode="numeric" autocomplete="off" />
-  <button class="decode-btn" id="decodeBtn">DECODE</button>
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('single')">SINGLE</button>
+  <button class="tab"        onclick="switchTab('batch')">BATCH TEST</button>
 </div>
-<p class="jstip">If nothing happens: <b>download this file</b> and open it in Chrome / Firefox</p>
 
-<div id="cascade"></div>
+<!-- ══ SINGLE PANEL ══ -->
+<div class="panel active" id="panel-single">
+  <div class="input-row">
+    <input type="text" id="numInput" placeholder="number or word…" autocomplete="off" />
+    <button class="btn" id="decodeBtn">DECODE</button>
+  </div>
+  <p class="jstip">If nothing happens: <b>download this file</b> → open in Chrome/Firefox</p>
+  <div id="cascade"></div>
+</div>
+
+<!-- ══ BATCH PANEL ══ -->
+<div class="panel" id="panel-batch">
+  <div class="batch-controls">
+    <div class="ctrl-group">
+      <div class="ctrl-label">Range</div>
+      <select id="bRange">
+        <option value="100">1 – 100</option>
+        <option value="1000">1 – 1,000</option>
+        <option value="100000" selected>1 – 100,000</option>
+        <option value="10000000">1 – 10,000,000</option>
+        <option value="1000000000">1 – 1,000,000,000</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Sample size</div>
+      <select id="bCount">
+        <option value="200">200</option>
+        <option value="500" selected>500</option>
+        <option value="1000">1,000</option>
+        <option value="2000">2,000</option>
+      </select>
+    </div>
+    <div class="ctrl-group">
+      <div class="ctrl-label">Mode</div>
+      <select id="bMode">
+        <option value="random" selected>Random sample</option>
+        <option value="seq">Sequential (1,2,3…)</option>
+      </select>
+    </div>
+    <button class="btn run-btn" id="runBatchBtn">RUN</button>
+  </div>
+  <div id="batch-results"></div>
+</div>
 
 <script>
-// ── Transforms: each one derives a new BigInt from n ──
-const TRANSFORMS = [
-  {
-    step:  '01',
-    title: 'The number itself',
-    exprFn: n  => `n`,
-    valueFn: n => n
-  },
-  {
-    step:  '02',
-    title: 'n squared',
-    exprFn: n  => `n²`,
-    valueFn: n => n * n
-  },
-  {
-    step:  '03',
-    title: 'n multiplied by prime 37',
-    exprFn: n  => `n × 37`,
-    valueFn: n => n * 37n
-  },
-  {
-    step:  '04',
-    title: 'n cubed',
-    exprFn: n  => `n³`,
-    valueFn: n => n * n * n
-  },
-  {
-    step:  '05',
-    title: 'Mirror sum: n + reversed digits',
-    exprFn: n  => `n + rev(n)`,
-    valueFn: n => {
-      const rev = BigInt([...n.toString()].reverse().join(''));
-      return n + rev;
-    }
-  },
-  {
-    step:  '06',
-    title: 'n⁴ residue (mod 2⁴⁰)',
-    exprFn: n  => `n⁴ mod 2⁴⁰`,
-    valueFn: n => (n * n * n * n) % (2n ** 40n)
-  }
+// ════════════ SHARED HELPERS ════════════
+function ones(bin){ let c=0; for(const ch of bin) if(ch==='1')c++; return c; }
+function fmtBig(n){ const s=n.toString(); return s.length<=15?s.replace(/\B(?=(\d{3})+(?!\d))/g,','):s.slice(0,5)+'…'+s.slice(-5); }
+function renderTug(o,z){
+  const tot=o+z; if(!tot) return '';
+  if(o===z) return `<div class="tug-track"><div class="tug-tie2">⚖ TIE ${o} vs ${z}</div></div>`;
+  const yp=Math.max(8,Math.round(o/tot*100)),np=100-yp;
+  return `<div class="tug-track"><div class="tug-y" style="width:${yp}%">${yp>16?yp+'%':''}</div><div class="tug-n" style="width:${np}%">${np>16?np+'%':''}</div></div>
+    <div class="tug-cts"><span class="tc-y">▲ ${o} ones</span><span class="tc-n">${z} zeros ▲</span></div>`;
+}
+
+// ════════════ NUMBER ANALYSIS ════════════
+// Transforms applied to BigInt n
+const TX = [
+  { step:'01', title:'The number itself',      fn:n=>n,         exprFn:n=>`n` },
+  { step:'02', title:'n squared',               fn:n=>n*n,       exprFn:n=>`n²` },
+  { step:'03', title:'n × prime 37',            fn:n=>n*37n,     exprFn:n=>`n × 37` },
+  { step:'04', title:'n cubed',                 fn:n=>n*n*n,     exprFn:n=>`n³` },
+  { step:'05', title:'Mirror sum: n + rev(n)',  fn:n=>{ const r=BigInt([...n.toString()].reverse().join(''));return n+r; }, exprFn:n=>`n + rev(n)` },
+  { step:'06', title:'n⁴ residue mod 2⁴⁰',     fn:n=>(n*n*n*n)%(2n**40n), exprFn:n=>`n⁴ mod 2⁴⁰` }
 ];
 
-function countOnes(bin) {
-  let c = 0;
-  for (const ch of bin) if (ch === '1') c++;
-  return c;
+// Strip the leading 1 from binary string.
+// Every positive integer's binary starts with 1 — stripping it removes
+// the built-in YES bias and gives a fair 50/50 baseline.
+function stripLead(bin){
+  return bin.length > 1 ? bin.slice(1) : bin; // keep single-bit numbers as-is
 }
 
-function fmtBig(n) {
-  const s = n.toString();
-  if (s.length <= 15) {
-    return s.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  }
-  return s.slice(0, 5) + '…' + s.slice(-5);
-}
-
-function analyze(raw) {
-  const num = parseInt(raw.replace(/,/g, ''), 10);
-  if (!Number.isFinite(num) || isNaN(num) || num < 0) return null;
+function analyzeNum(raw){
+  const num = parseInt(String(raw).replace(/,/g,''),10);
+  if(!Number.isFinite(num)||isNaN(num)||num<0) return null;
   const n = BigInt(Math.abs(num));
-
-  let totalOnes = 0, totalZeros = 0;
-  const steps = [];
-
-  for (const t of TRANSFORMS) {
-    const val = t.valueFn(n);
-    const bin = val.toString(2);
-    const ones  = countOnes(bin);
-    const zeros = bin.length - ones;
-    totalOnes  += ones;
-    totalZeros += zeros;
-
-    const state = totalOnes === totalZeros ? 'tie'
-                : totalOnes  > totalZeros  ? 'yes'
-                : 'no';
-
-    steps.push({
-      step:   t.step,
-      title:  t.title,
-      expr:   t.exprFn(n),
-      fmtVal: fmtBig(val),
-      bin,
-      roundOnes:  ones,
-      roundZeros: zeros,
-      runOnes:    totalOnes,
-      runZeros:   totalZeros,
-      state
-    });
-
-    if (state !== 'tie') break;
+  let t1=0,t0=0; const steps=[];
+  for(const t of TX){
+    const val=t.fn(n);
+    const fullBin=val.toString(2);
+    const bin=stripLead(fullBin);
+    const o=ones(bin), z=bin.length-o;
+    t1+=o; t0+=z;
+    const state=t1===t0?'tie':t1>t0?'yes':'no';
+    steps.push({ step:t.step, title:t.title, expr:t.exprFn(n), fmtVal:fmtBig(val),
+      fullBin, bin, stripped:fullBin.length>1, roundOnes:o, roundZeros:z, runOnes:t1, runZeros:t0, state });
+    if(state!=='tie') break;
   }
-
-  const last   = steps[steps.length - 1];
-  const verdict = last.runOnes > last.runZeros ? 'YES' : 'NO';
-  return { n: num, steps, verdict, totalOnes, totalZeros };
+  return { kind:'number', n:num, steps, verdict:t1>t0?'YES':'NO', totalOnes:t1, totalZeros:t0 };
 }
 
-// ── Render bits row ──
-function renderBits(bin, state, baseDelay) {
-  const MAX = 52;
-  const show = bin.length > MAX ? bin.slice(0, MAX) : bin;
-  const cls  = state === 'yes' ? 'b1y' : state === 'no' ? 'b1n' : 'b1t';
-  let html = '<div class="bits-row">';
-  for (let i = 0; i < show.length; i++) {
-    if (i > 0 && (show.length - i) % 4 === 0) {
-      html += '<div class="bsep"></div>';
-    }
-    const delay = (baseDelay + i * 0.018).toFixed(3);
-    html += `<div class="bit ${show[i] === '1' ? cls : 'b0'}" style="animation-delay:${delay}s">${show[i]}</div>`;
+// Fast variant for batch (no full step detail)
+function analyzeNumFast(num){
+  const n=BigInt(Math.abs(num)); let t1=0,t0=0;
+  for(let i=0;i<TX.length;i++){
+    const bin=stripLead(TX[i].fn(n).toString(2));
+    const o=ones(bin); const z=bin.length-o;
+    t1+=o; t0+=z;
+    if(t1!==t0) return { verdict:t1>t0?'YES':'NO', steps:i+1, bitlen:n.toString(2).length };
   }
-  html += '</div>';
-  if (bin.length > MAX) {
-    html += `<div class="bits-more">… ${bin.length - MAX} more bits hidden (${bin.length} total)</div>`;
-  }
-  return html;
+  return { verdict:t1>t0?'YES':'NO', steps:TX.length, bitlen:n.toString(2).length };
 }
 
-// ── Render tug-of-war bar ──
-function renderTug(ones, zeros) {
-  const total = ones + zeros;
-  if (total === 0) return '';
-  if (ones === zeros) {
-    return `<div class="tug-track"><div class="tug-tie-bar">⚖  TIE  ${ones} vs ${zeros}</div></div>`;
+// ════════════ TEXT ANALYSIS ════════════
+function analyzeText(text){
+  if(!text.trim()) return null;
+  const chars=[...text].map(ch=>{
+    const code=ch.charCodeAt(0);
+    const bin=code.toString(2).padStart(8,'0'); // fixed 8-bit, no stripping needed
+    const o=ones(bin), z=8-o;
+    const verdict=o>z?'YES':o<z?'NO':'TIE';
+    return { ch, code, bin, ones:o, zeros:z, verdict };
+  });
+  const combined=chars.map(c=>c.bin).join('');
+  const t1=ones(combined), t0=combined.length-t1;
+  let verdict, tieBreakerNote='';
+  if(t1>t0)       { verdict='YES'; }
+  else if(t0>t1)  { verdict='NO'; }
+  else {
+    // Tiebreaker: sum of char codes → BigInt → strip-and-analyze
+    const codeSum=BigInt(chars.reduce((a,c)=>a+c.code,0));
+    const sumBin=stripLead(codeSum.toString(2));
+    const so=ones(sumBin), sz=sumBin.length-so;
+    verdict=so>sz?'YES':sz>so?'NO':(codeSum%2n===1n?'YES':'NO');
+    tieBreakerNote=`Tied — tiebreaker used char-code sum (${Number(codeSum)}).`;
   }
-  const yp = Math.max(8, Math.round((ones / total) * 100));
-  const np = 100 - yp;
-  return `
-    <div class="tug-track">
-      <div class="tug-yes" style="width:${yp}%">${yp > 18 ? yp + '%' : ''}</div>
-      <div class="tug-no"  style="width:${np}%">${np > 18 ? np + '%' : ''}</div>
-    </div>
-    <div class="tug-counts">
-      <span class="tc-yes">▲ ${ones} ones</span>
-      <span class="tc-no">${zeros} zeros ▲</span>
-    </div>`;
+  return { kind:'text', text, chars, combined, totalOnes:t1, totalZeros:t0, verdict, tieBreakerNote };
 }
 
-// ── Build reason text ──
-function buildReason(result) {
-  const { n, steps, verdict, totalOnes, totalZeros } = result;
-  const s0 = steps[0];
-  if (steps.length === 1) {
-    return `<strong>${n.toLocaleString()}</strong> in binary is <code>${s0.bin}</code>. `
-      + (s0.roundOnes > s0.roundZeros
-          ? `<strong>${s0.roundOnes} ones</strong> outnumber ${s0.roundZeros} zeros immediately.`
-          : `<strong>${s0.roundZeros} zeros</strong> outnumber ${s0.roundOnes} ones immediately.`);
+// ════════════ DETECT INPUT TYPE ════════════
+function isNumeric(s){ return /^[\d,\s]+$/.test(s.trim()) && !isNaN(parseInt(s.replace(/,/g,''),10)); }
+
+// ════════════ RENDER BITS (numbers) ════════════
+function renderBits(fullBin, bin, stripped, state, baseDelay){
+  const MAX=50;
+  const cls=state==='yes'?'b1y':state==='no'?'b1n':'b1t';
+  // show the stripped bit first (dimmed), then the analysis bits
+  let h='<div class="bits-row">';
+  if(stripped){
+    const d=(baseDelay).toFixed(3);
+    h+=`<div class="bit bit-stripped" style="animation-delay:${d}s" title="Leading 1 — stripped">1</div><div class="bsep"></div>`;
   }
-  const last = steps[steps.length - 1];
-  return `<strong>${n.toLocaleString()}</strong> started as a tie (${s0.roundOnes}–${s0.roundZeros}), `
-    + `so we ran ${steps.length - 1} deeper transform${steps.length > 2 ? 's' : ''} — `
-    + `squaring, scaling by a prime, cubing, and more — accumulating `
-    + `<strong>${totalOnes + totalZeros} total bits</strong> across all rounds. `
-    + `Final score: <strong>${totalOnes} ones</strong> vs <strong>${totalZeros} zeros</strong> → <strong>${verdict}</strong>.`;
+  const show=bin.length>MAX?bin.slice(0,MAX):bin;
+  for(let i=0;i<show.length;i++){
+    if(i>0&&(show.length-i)%4===0) h+='<div class="bsep"></div>';
+    const d=(baseDelay+.04+(i+1)*.018).toFixed(3);
+    h+=`<div class="bit ${show[i]==='1'?cls:'b0'}" style="animation-delay:${d}s">${show[i]}</div>`;
+  }
+  h+='</div>';
+  if(stripped) h+=`<div class="strip-note">↑ leading 1 stripped — analysis uses the ${bin.length} remaining bits</div>`;
+  if(bin.length>MAX) h+=`<div class="bits-more">… ${bin.length-MAX} more bits hidden (${bin.length} total)</div>`;
+  return h;
 }
 
-// ── Main render ──
-function render(result) {
-  const { steps, verdict, totalOnes, totalZeros } = result;
-  let html = '';
-  let baseDelay = 0;
-
-  steps.forEach((s, i) => {
-    const cardDelay = (i * 0.38).toFixed(2);
-    const bitsDelay = baseDelay + 0.12;
-
-    html += `<div class="step-wrap" style="animation-delay:${cardDelay}s">
+// ════════════ RENDER: NUMBER MODE ════════════
+function renderNumber(result){
+  const {steps,verdict,totalOnes:t1,totalZeros:t0}=result;
+  let html='',bd=0;
+  steps.forEach((s,i)=>{
+    const cd=(i*.38).toFixed(2);
+    html+=`<div class="step-wrap" style="animation-delay:${cd}s">
       <div class="step-card state-${s.state}">
         <div class="step-top">
-          <div>
-            <div class="step-num">STEP ${s.step}</div>
-            <div class="step-title">${s.title}</div>
-          </div>
-          <div class="state-badge badge-${s.state}">
-            ${s.state === 'tie' ? '⚖ TIE' : s.state === 'yes' ? '▲ ONES LEAD' : '▼ ZEROS LEAD'}
-          </div>
+          <div><div class="step-num">STEP ${s.step}</div><div class="step-title">${s.title}</div></div>
+          <div class="sbadge sb-${s.state}">${s.state==='tie'?'⚖ TIE':s.state==='yes'?'▲ ONES LEAD':'▼ ZEROS LEAD'}</div>
         </div>
-
-        <div class="eq-box">
-          <div class="eq-line">
-            <span class="eq-op">${s.expr}</span>
-            <span class="eq-res"> = ${s.fmtVal}</span>
-          </div>
-        </div>
-
-        <div class="bits-box">${renderBits(s.bin, s.state, bitsDelay)}</div>
-
-        <div class="round-stats">
-          This round:&nbsp;
-          <span class="rs1">+${s.roundOnes} ones</span>&nbsp;/&nbsp;
-          <span class="rs0">+${s.roundZeros} zeros</span>&nbsp;·&nbsp;${s.bin.length} bits
-        </div>
-
-        <div class="tug-label">Running total across all steps</div>
-        ${renderTug(s.runOnes, s.runZeros)}
-      </div>
-    </div>`;
-
-    // connector
-    if (s.state === 'tie' && i < steps.length - 1) {
-      const cDelay = (i * 0.38 + 0.3).toFixed(2);
-      html += `<div class="step-wrap" style="animation-delay:${cDelay}s">
-        <div class="connector">TIE DETECTED — DEEPENING THE SEARCH</div>
-      </div>`;
-    }
-
-    baseDelay += 0.12 + s.bin.length * 0.018 + 0.1;
+        <div class="eq-box"><span class="eq-op">${s.expr}</span> <span class="eq-res">= ${s.fmtVal}</span></div>
+        <div class="bits-box">${renderBits(s.fullBin,s.bin,s.stripped,s.state,bd+.08)}</div>
+        <div class="rstat">This round:&nbsp;<span class="rs1">+${s.roundOnes} ones</span>&nbsp;/&nbsp;<span class="rs0">+${s.roundZeros} zeros</span>&nbsp;·&nbsp;${s.bin.length} bits analyzed</div>
+        <div class="tug-lbl">Running total</div>${renderTug(s.runOnes,s.runZeros)}
+      </div></div>`;
+    if(s.state==='tie'&&i<steps.length-1)
+      html+=`<div class="step-wrap" style="animation-delay:${(i*.38+.28).toFixed(2)}s"><div class="connector">TIE — DEEPENING THE SEARCH</div></div>`;
+    bd+=.12+s.bin.length*.018+.1;
   });
-
-  // verdict
-  const vDelay = (steps.length * 0.38 + 0.3).toFixed(2);
-  html += `<div class="verdict-wrap" style="animation-delay:${vDelay}s">
-    <div class="verdict-label">Final verdict</div>
-    <div class="verdict-tally">
-      <b>${totalOnes}</b> ones &nbsp;vs&nbsp; <b>${totalZeros}</b> zeros
-    </div>
-    <div class="verdict-big ${verdict === 'YES' ? 'yes' : 'no'}">${verdict}</div>
-    <div class="verdict-detail">${buildReason(result)}</div>
+  const vd=(steps.length*.38+.28).toFixed(2);
+  const s0=steps[0];
+  const detail=steps.length===1
+    ?(s0.roundOnes>s0.roundZeros
+      ?`<strong>${result.n.toLocaleString()}</strong> has ${s0.roundOnes} ones vs ${s0.roundZeros} zeros (after stripping the leading 1) — ones win.`
+      :`<strong>${result.n.toLocaleString()}</strong> has ${s0.roundZeros} zeros vs ${s0.roundOnes} ones (after stripping) — zeros win.`)
+    :`<strong>${result.n.toLocaleString()}</strong> tied ${s0.roundOnes}–${s0.roundZeros} on step 1, so we ran ${steps.length-1} deeper transform${steps.length>2?'s':''}, accumulating <strong>${t1+t0} total bits</strong> before ${t1>t0?'ones pulled ahead':'zeros pulled ahead'}.`;
+  html+=`<div class="verdict-wrap" style="animation-delay:${vd}s">
+    <div class="verd-lbl">Final verdict</div>
+    <div class="verd-tally"><b>${t1}</b> ones &nbsp;vs&nbsp; <b>${t0}</b> zeros</div>
+    <div class="verd-big ${verdict==='YES'?'yes':'no'}">${verdict}</div>
+    <div class="verd-detail">${detail}</div>
   </div>`;
-
-  document.getElementById('cascade').innerHTML = html;
+  document.getElementById('cascade').innerHTML=html;
 }
 
-function run() {
-  const raw = document.getElementById('numInput').value.trim();
-  if (!raw) return;
-  const result = analyze(raw);
-  if (!result) {
-    document.getElementById('cascade').innerHTML =
-      '<p style="color:var(--no);text-align:center;margin-top:24px;font-size:0.85rem">Please enter a valid positive integer.</p>';
-    return;
+// ════════════ RENDER: TEXT MODE ════════════
+function renderText(result){
+  const {text,chars,combined,totalOnes:t1,totalZeros:t0,verdict,tieBreakerNote}=result;
+  // character grid
+  let charHtml=chars.map(c=>`<div class="char-card">
+    <div class="char-glyph">${c.ch==='<'?'&lt;':c.ch==='>'?'&gt;':c.ch==='&'?'&amp;':c.ch===' '?'·':c.ch}</div>
+    <div class="char-code">ASCII ${c.code}</div>
+    <div class="char-bin">${c.bin.match(/.{1,4}/g).join(' ')}</div>
+    <div class="char-verdict ${c.verdict==='YES'?'cv-yes':c.verdict==='NO'?'cv-no':'cv-tie'}">${c.verdict}</div>
+  </div>`).join('');
+
+  const yesChars=chars.filter(c=>c.verdict==='YES').length;
+  const noChars=chars.filter(c=>c.verdict==='NO').length;
+  const tieChars=chars.filter(c=>c.verdict==='TIE').length;
+
+  const pct=(t1/(t1+t0)*100).toFixed(1);
+  const detail=tieBreakerNote
+    ?`All ${chars.length} characters tied overall. ${tieBreakerNote} Verdict: <strong>${verdict}</strong>.`
+    :`<strong>${text}</strong> produces ${t1+t0} bits total across ${chars.length} characters. <strong>${t1} ones</strong> vs <strong>${t0} zeros</strong> → <strong>${verdict}</strong>.`;
+
+  let html=`
+  <div class="step-wrap" style="animation-delay:.05s">
+    <div class="step-card state-${verdict==='YES'?'yes':'no'}">
+      <div class="step-top">
+        <div><div class="step-num">TEXT INPUT</div><div class="step-title">Each character → 8-bit ASCII binary</div></div>
+        <div class="sbadge sb-${verdict==='YES'?'yes':'no'}">${verdict==='YES'?'▲ ONES LEAD':'▼ ZEROS LEAD'}</div>
+      </div>
+      <div class="char-grid">${charHtml}</div>
+      <div class="rstat" style="margin-bottom:6px">
+        Characters:&nbsp;<span class="rs1">${yesChars} YES</span>&nbsp;/&nbsp;<span class="rs0">${noChars} NO</span>&nbsp;/&nbsp;<span style="color:var(--tie);font-weight:700">${tieChars} TIE</span>
+        &nbsp;·&nbsp;${t1+t0} total bits
+      </div>
+      <div class="tug-lbl">Combined balance (all characters)</div>
+      ${renderTug(t1,t0)}
+    </div>
+  </div>
+  <div class="verdict-wrap" style="animation-delay:.4s">
+    <div class="verd-lbl">Final verdict</div>
+    <div class="verd-tally"><b>${t1}</b> ones &nbsp;vs&nbsp; <b>${t0}</b> zeros</div>
+    <div class="verd-big ${verdict==='YES'?'yes':'no'}">${verdict}</div>
+    <div class="verd-detail">${detail}</div>
+  </div>`;
+  document.getElementById('cascade').innerHTML=html;
+}
+
+// ════════════ BATCH MODE ════════════
+function runBatch(){
+  const hi=parseInt(document.getElementById('bRange').value);
+  const count=parseInt(document.getElementById('bCount').value);
+  const mode=document.getElementById('bMode').value;
+  const nums=mode==='seq'
+    ?Array.from({length:Math.min(count,hi)},(_,i)=>i+1)
+    :Array.from({length:count},()=>Math.floor(Math.random()*hi)+1);
+  const results=nums.map(n=>({n,...analyzeNumFast(n)}));
+  const yesR=results.filter(r=>r.verdict==='YES');
+  const noR=results.filter(r=>r.verdict==='NO');
+  const yp=(yesR.length/results.length*100).toFixed(1);
+  const np=(100-parseFloat(yp)).toFixed(1);
+  const bias=Math.abs(parseFloat(yp)-50).toFixed(1);
+  const stepDist=[0,0,0,0,0,0];
+  results.forEach(r=>stepDist[r.steps-1]++);
+  const maxStep=stepDist.reduce((a,v,i)=>v?i:a,0)+1;
+  const stepMax=Math.max(...stepDist.slice(0,maxStep));
+  const blMap={};
+  results.forEach(r=>{ if(!blMap[r.bitlen])blMap[r.bitlen]={yes:0,no:0}; blMap[r.bitlen][r.verdict==='YES'?'yes':'no']++; });
+  const blKeys=Object.keys(blMap).map(Number).sort((a,b)=>a-b);
+
+  document.getElementById('batch-results').innerHTML=`
+  <div class="stat-cards">
+    <div class="sc"><div class="sc-val" style="color:var(--yes)">${yesR.length}</div><div class="sc-lbl">YES</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--no)">${noR.length}</div><div class="sc-lbl">NO</div></div>
+    <div class="sc"><div class="sc-val" style="color:var(--acc)">${results.length}</div><div class="sc-lbl">Total</div></div>
+    <div class="sc"><div class="sc-val" style="color:${parseFloat(bias)<3?'var(--yes)':'var(--tie)'}">${bias}%</div><div class="sc-lbl">Bias from 50/50</div></div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">YES vs NO distribution</div>
+    <div class="hbar-row">
+      <div class="hbar-lbl" style="color:var(--yes)">YES</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${yp}%;background:var(--yes);color:#000">${yesR.length}</div></div>
+      <div class="hbar-pct">${yp}%</div>
+    </div>
+    <div class="hbar-row">
+      <div class="hbar-lbl" style="color:var(--no)">NO</div>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${np}%;background:var(--no);color:#000">${noR.length}</div></div>
+      <div class="hbar-pct">${np}%</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">Result map — each cell is one number &nbsp;
+      <span style="background:var(--yes-bg);color:var(--yes);font-size:.58rem;padding:1px 6px;border-radius:3px">■ YES</span> &nbsp;
+      <span style="background:var(--no-bg);color:var(--no);font-size:.58rem;padding:1px 6px;border-radius:3px">■ NO</span> &nbsp;
+      <span style="font-size:.58rem;color:var(--mu);border:1px solid #fff3;padding:1px 5px;border-radius:3px">outline = 2+ steps</span>
+    </div>
+    <div class="grid-wrap">
+      ${results.map(r=>`<div class="gcell ${r.verdict==='YES'?'gyes':'gno'}${r.steps>1?' gstep2':''}" title="${r.n.toLocaleString()} → ${r.verdict} (step ${r.steps})"></div>`).join('')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">Cascade depth — how many steps were needed?</div>
+    <div class="steps-row">
+      ${stepDist.slice(0,maxStep).map((v,i)=>{
+        const h=Math.max(2,Math.round(v/stepMax*64));
+        return `<div class="step-bar sb${i+1}" style="height:${h}px">${v||''}</div>`;
+      }).join('')}
+    </div>
+    <div class="steps-xlbl">
+      ${stepDist.slice(0,maxStep).map((_,i)=>`<div class="sx">Step ${i+1}</div>`).join('')}
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">YES% by bit length (shorter numbers have stronger bias)</div>
+    <table class="bl-table">
+      <thead><tr><th>Bits</th><th>Count</th><th>YES</th><th>NO</th><th>YES%</th><th>Bar</th></tr></thead>
+      <tbody>${blKeys.map(k=>{
+        const {yes,no}=blMap[k],tot=yes+no,p=Math.round(yes/tot*100);
+        const clr=p>=55?'var(--yes)':p<=45?'var(--no)':'var(--tie)';
+        return `<tr>
+          <td style="color:var(--acc);font-family:'Courier New',monospace;font-weight:700">${k}</td>
+          <td>${tot}</td><td style="color:var(--yes)">${yes}</td><td style="color:var(--no)">${no}</td>
+          <td style="color:${clr};font-weight:700">${p}%</td>
+          <td><span class="mini-bar" style="width:${p*.65}px;background:var(--yes)"></span><span class="mini-bar" style="width:${(100-p)*.65}px;background:var(--no)"></span></td>
+        </tr>`;}).join('')}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="sec-title">What the data tells us</div>
+    <div class="insight">
+      <strong>Bias from 50/50: ${bias}%</strong> — ${parseFloat(bias)<3?'<span class="hl-y">very close to fair!</span>':parseFloat(bias)<6?'<span class="hl-t">slight YES lean</span>':'<span class="hl-n">noticeable YES lean</span>'}
+      <br><br>
+      By stripping the leading 1, we removed the main source of YES bias (every binary number's first bit is always 1, giving ones a free head-start).
+      Any remaining imbalance comes from the <strong>distribution of bit lengths</strong> in the chosen range —
+      odd-bit-length numbers still have a slight YES lean because after stripping they have one fewer bit, and with an odd number of remaining bits a tie is impossible, so the extra bit tends to side with ones.
+      <br><br>
+      Shorter numbers (few bits) tend to be <span class="hl-y">more YES-biased</span>. Longer numbers (many bits) approach <span class="hl-t">true 50/50</span>.
+      The outlined cells in the grid above required 2+ cascade steps — that's roughly <strong>${Math.round(stepDist.slice(1).reduce((a,b)=>a+b,0)/results.length*100)}% of numbers</strong>.
+    </div>
+  </div>`;
+}
+
+// ════════════ TAB SWITCHING ════════════
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',['single','batch'][i]===name));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+}
+
+// ════════════ WIRING ════════════
+function decode(){
+  const raw=document.getElementById('numInput').value.trim();
+  if(!raw) return;
+  const el=document.getElementById('cascade');
+  if(isNumeric(raw)){
+    const r=analyzeNum(raw);
+    if(!r){ el.innerHTML='<p style="color:var(--no);text-align:center;margin-top:18px;font-size:.82rem">Enter a valid positive integer.</p>'; return; }
+    renderNumber(r);
+  } else {
+    const r=analyzeText(raw);
+    if(!r){ el.innerHTML='<p style="color:var(--no);text-align:center;margin-top:18px;font-size:.82rem">Please enter some text.</p>'; return; }
+    renderText(r);
   }
-  render(result);
 }
-
-document.getElementById('decodeBtn').addEventListener('click', run);
-document.getElementById('numInput').addEventListener('keydown', e => {
-  if (e.key === 'Enter') run();
-});
+document.getElementById('decodeBtn').addEventListener('click', decode);
+document.getElementById('numInput').addEventListener('keydown', e=>{ if(e.key==='Enter') decode(); });
+document.getElementById('runBatchBtn').addEventListener('click', runBatch);
 </script>
 </body>
 </html>
